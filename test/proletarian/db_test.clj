@@ -3,6 +3,7 @@
             [clojure.test :refer :all]
             [clojure.spec.alpha :as spec]
             [clojure.spec.gen.alpha :as spec.gen]
+            [jsonista.core :as json]
             [next.jdbc :as jdbc]
             [proletarian.db :as db]
             [proletarian.protocols :as p]
@@ -10,7 +11,8 @@
             [proletarian.transit :as transit])
   (:import (java.sql Timestamp)
            (java.time LocalDateTime ZoneOffset Instant)
-           (java.time.temporal ChronoUnit)))
+           (java.time.temporal ChronoUnit)
+           (org.postgresql.util PGobject)))
 
 (set! *warn-on-reflection* true)
 
@@ -218,3 +220,31 @@
         (is (= (assoc job :proletarian.job/process-at retry-at
                           :proletarian.job/attempts (inc attempts))
                (db/get-next-job conn config (:proletarian.job/queue job))))))))
+
+(def mapper (json/object-mapper))
+(def <-json #(json/read-value % mapper))
+
+(deftest test-index
+  (with-conn
+    (fn [conn]
+      (dotimes [_ 1000]
+        (db/enqueue! conn config (spec.gen/generate (spec/gen :proletarian/job))))
+      (jdbc/with-transaction [tx @data-source]
+        (is (= {"Index Cond" "((job.queue = ':proletarian/default'::text) AND (job.process_at <= now()))"
+                "Index Name" "job_queue_process_at"
+                "Node Type" "Index Scan"}
+               (-> (jdbc/execute-one! tx ["EXPLAIN ( ANALYZE , COSTS , VERBOSE , BUFFERS, FORMAT JSON)
+                                  SELECT job_id, queue, job_type, payload, attempts, enqueued_at, process_at FROM proletarian.job
+                                  WHERE
+                                    queue = ?
+                                    AND process_at <= now()
+                                  ORDER BY process_at ASC
+                                  LIMIT 1
+                                  FOR UPDATE SKIP LOCKED"
+                                          (str db/DEFAULT_QUEUE)])
+                   ^PGobject (get (keyword "QUERY PLAN"))
+                   (.getValue)
+                   (<-json)
+                   (first)
+                   (get-in ["Plan" "Plans" 0 "Plans" 0])
+                   (select-keys ["Index Cond" "Index Name" "Node Type"]))))))))

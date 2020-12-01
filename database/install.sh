@@ -30,6 +30,10 @@ if [ "$CREATE_DATABASE" = "off" ] ; then
   create_database=false
 fi
 
+if [ -z ${PGOPTIONS+x} ]; then
+  export PGOPTIONS='-c client_min_messages=warning'
+fi
+
 function create-user {
   base=$(script_dir)
 
@@ -52,6 +56,11 @@ function create-tables {
   psql $database -q -f $base/tables/job.sql
   echo "» proletarian.archived_job table"
   psql $database -q -f $base/tables/archived_job.sql
+}
+
+function create-index {
+  echo "» proletarian.job_queue_process_at index"
+  psql $database -q -f $base/indexes/job_queue_process_at.sql
 }
 
 function grant-privileges {
@@ -85,6 +94,11 @@ echo
 echo "Creating Tables"
 echo "- - -"
 create-tables
+echo
+
+echo "Creating Index"
+echo "- - -"
+create-index
 echo
 
 echo "Granting Privileges"
