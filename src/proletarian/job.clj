@@ -1,8 +1,9 @@
 (ns proletarian.job
   (:require [proletarian.db :as db]
             [proletarian.transit :as transit])
-  (:import (java.util UUID)
-           (java.time Instant)))
+  (:import (java.sql Connection)
+           (java.time Instant)
+           (java.util UUID)))
 
 (defmulti handle-job!
   "This multimethod is called by the Proletarian poller when a job is ready
@@ -65,6 +66,7 @@
                                 serializer (transit/create-serializer)
                                 uuid-fn #(UUID/randomUUID)
                                 now-fn #(Instant/now)}}]
+   {:pre [(instance? Connection conn)]}
    (let [job-id (uuid-fn)
          now (now-fn)]
      (db/enqueue! conn
