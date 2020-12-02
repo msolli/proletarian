@@ -137,13 +137,13 @@
                       clock (Clock/systemUTC)
                       on-shutdown #()}}]
    {:pre [(instance? DataSource data-source)]}
-   (let [worker-controller-id (or worker-controller-id (str "proletarian[" queue "]"))
+   (let [worker-controller-id (or (some-> worker-controller-id str) (str "proletarian[" queue "]"))
          log (wrap-log-with-context log {::worker-controller-id worker-controller-id})
          executor (atom nil)
          config {::db/job-table job-table
                  ::db/archived-job-table archived-job-table
                  ::db/serializer serializer
-                 ::thread-prefix worker-controller-id
+                 ::worker-controller-id worker-controller-id
                  ::worker-threads worker-threads
                  ::polling-interval-ms polling-interval-ms
                  ::await-termination-timeout-ms await-termination-timeout-ms
