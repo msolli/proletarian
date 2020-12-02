@@ -8,7 +8,7 @@ web applications. What kind of tasks? Anything that takes more than a few
 milliseconds:
 
  - sending emails
- - making HTTP calls to external system
+ - making HTTP calls to external systems
  - updating search indexes
  - batch imports and exports
 
@@ -47,13 +47,16 @@ one namespace, and the enqueuing of a job in another namespace:
 (ns your-app.workers
   "You'll probably want to use a component state library (Component, Integrant,
    Mount, or some such) for managing the worker state. For this example we're
-   just def-ing the worker. We're also imagining you have a db namespace that
-   manages the database connection, for example with next.jdbc. All we need is
-   a javax.sql.DataSource, though."
-  (:require [proletarian.worker :as worker]
-            [your-app.db :as db]))
+   just def-ing the worker. The worker controller constructor functions takes
+   a javax.sql.DataSource as its first (and only required) argument. You
+   probably already have a data-source at hand in your application already. Here
+   will use next.jdbc to get one from a JDBC connection URL."
+  (:require [next.jdbc :as jdbc]
+            [proletarian.worker :as worker]))
 
-(def email-worker (worker/create-worker-controller db/data-source))
+(def email-worker
+  (let [ds (jdbc/get-datasource "jdbc:postgresql://...")]
+    (worker/create-worker-controller ds)))
 
 (worker/start! email-worker)
 ```
@@ -68,8 +71,8 @@ one namespace, and the enqueuing of a job in another namespace:
 
 (defn some-handler [system request]
   (jdbc/with-transaction [tx (:db system)]
-    ,,, ;; Do some business logic here
-    ,,, ;; Write some result to the database
+    ;; Do some business logic here
+    ;; Write some result to the database
     ;; Enqueue the job:
     (job/enqueue! tx ::confirmation-email
       {:email email-address, :other-data-1 :foo, :other-data-2 :bar})
