@@ -2,13 +2,6 @@
 
 set -e
 
-function script_dir {
-  val="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-  echo "$val"
-}
-
-base=$(script_dir)
-
 echo
 echo "Uninstalling Proletarian Database"
 echo "= = ="
@@ -20,7 +13,6 @@ if [ -z ${DATABASE_NAME+x} ]; then
 else
   database=$DATABASE_NAME
 fi
-echo
 
 if [ -z ${PGOPTIONS+x} ]; then
   export PGOPTIONS='-c client_min_messages=warning'
