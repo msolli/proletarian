@@ -94,7 +94,7 @@
                       (update job :proletarian.job/attempts inc)
 
                       clock (::clock config)
-                      log (wrap-log-with-context log {:job-id job-id :attempt attempts})]
+                      log (wrap-log-with-context log {:job-id job-id :job-type job-type :attempt attempts})]
                   (try
                     (log ::handling-job)
                     (job/handle-job!
