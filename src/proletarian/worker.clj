@@ -173,7 +173,6 @@
          (when @executor
            (let [{::keys [await-termination-timeout-ms]} config]
              (executor/shutdown-executor @executor await-termination-timeout-ms log)
-             (reset! executor nil)
              (on-shutdown)
              true)))))))
 
