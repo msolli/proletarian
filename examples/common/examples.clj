@@ -1,5 +1,6 @@
 (ns examples
-  (:require [next.jdbc :as jdbc]))
+  (:require [next.jdbc :as jdbc]
+            [proletarian.worker :as worker]))
 
 (def config {:jdbc-url "jdbc:postgresql://localhost/proletarian?user=proletarian&password="})
 
@@ -27,3 +28,17 @@
                    :count)]
     (println "Number of successful jobs:" successful)
     (println "Number of failed jobs:" failed)))
+
+(defn add-shutdown-hook
+  [worker]
+  (.addShutdownHook
+    (Runtime/getRuntime)
+    (Thread.
+      ^Runnable
+      (fn []
+        (try
+          (worker/stop! worker)
+          (shutdown-agents)
+          (catch InterruptedException e
+            (.printStackTrace e)
+            (.interrupt (Thread/currentThread))))))))

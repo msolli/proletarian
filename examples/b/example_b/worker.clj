@@ -12,8 +12,7 @@
 
 (defn on-shutdown
   [ds]
-  (examples/summary ds)
-  (shutdown-agents))
+  (examples/summary ds))
 
 (defn run
   [{:keys [worker-threads polling-interval]
@@ -28,14 +27,5 @@
                                                                    :worker-threads worker-threads
                                                                    :context-fn (constantly context)
                                                                    :on-shutdown (partial on-shutdown ds)})]
-      (.addShutdownHook
-        (Runtime/getRuntime)
-        (Thread.
-          ^Runnable
-          (fn []
-            (try
-              (worker/stop! worker)
-              (catch InterruptedException e
-                (.printStackTrace e)
-                (.interrupt (Thread/currentThread)))))))
+      (examples/add-shutdown-hook worker)
       (worker/start! worker))))
