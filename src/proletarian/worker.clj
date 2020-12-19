@@ -119,12 +119,38 @@
       (log ::job-worker-error {:throwable e})
       (stop-controller!))))
 
+(defn ^:private create-shutdown-hook
+  [worker]
+  (Thread.
+    ^Runnable
+    (fn []
+      (try
+        (p/stop! worker)
+        (catch InterruptedException e
+          (.printStackTrace e)
+          (.interrupt (Thread/currentThread)))))))
+
+(defn ^:private install-jvm-shutdown-hook!
+  [worker hook]
+  (reset! hook (create-shutdown-hook worker))
+  (.addShutdownHook (Runtime/getRuntime) @hook))
+
+(defn ^:private remove-shutdown-hook!
+  [hook]
+  (try
+    (.removeShutdownHook (Runtime/getRuntime) @hook)
+    (catch IllegalStateException _
+      ;; JVM is shutting down, ignore.
+      )
+    (finally
+      (reset! hook nil))))
+
 (defn create-worker-controller
   ([data-source] (create-worker-controller data-source nil))
   ([data-source {:proletarian/keys [queue job-table archived-job-table serializer context-fn log
                                     worker-controller-id polling-interval-ms worker-threads await-termination-timeout-ms
-                                    clock
-                                    on-shutdown]
+                                    install-jvm-shutdown-hook? on-shutdown
+                                    clock]
                  :or {queue db/DEFAULT_QUEUE
                       job-table db/DEFAULT_JOB_TABLE
                       archived-job-table db/DEFAULT_ARCHIVED_JOB_TABLE
@@ -134,12 +160,14 @@
                       polling-interval-ms 100
                       worker-threads 1
                       await-termination-timeout-ms 10000
-                      clock (Clock/systemUTC)
-                      on-shutdown #()}}]
+                      install-jvm-shutdown-hook? false
+                      on-shutdown #()
+                      clock (Clock/systemUTC)}}]
    {:pre [(instance? DataSource data-source)]}
    (let [worker-controller-id (or (some-> worker-controller-id str) (str "proletarian[" queue "]"))
          log (wrap-log-with-context log {::worker-controller-id worker-controller-id})
          executor (atom nil)
+         shutdown-hook (atom nil)
          config {::db/job-table job-table
                  ::db/archived-job-table archived-job-table
                  ::db/serializer serializer
@@ -151,6 +179,7 @@
      (reify p/WorkerController
        (start! [this]
          (when-not @executor
+           (when install-jvm-shutdown-hook? (install-jvm-shutdown-hook! this shutdown-hook))
            (let [{::keys [worker-controller-id worker-threads polling-interval-ms]} config
                  stop-controller! #(future
                                      (try
@@ -171,6 +200,7 @@
              true)))
        (stop! [_]
          (when @executor
+           (when install-jvm-shutdown-hook? (remove-shutdown-hook! shutdown-hook))
            (let [{::keys [await-termination-timeout-ms]} config]
              (executor/shutdown-executor @executor await-termination-timeout-ms log)
              (on-shutdown)

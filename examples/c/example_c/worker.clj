@@ -14,6 +14,6 @@
     (examples/preamble ds)
     (println "Starting worker for :proletarian/default queue with polling interval 1 s")
     (let [worker (worker/create-worker-controller ds {:proletarian/polling-interval-ms 1000
-                                                      :proletarian/on-shutdown (partial on-shutdown ds)})]
-      (examples/add-shutdown-hook worker)
+                                                      :proletarian/on-shutdown (partial on-shutdown ds)
+                                                      :proletarian/install-jvm-shutdown-hook? true})]
       (worker/start! worker))))

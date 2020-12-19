@@ -26,6 +26,6 @@
     (let [worker (worker/create-worker-controller ds #:proletarian{:polling-interval-ms (* 1000 polling-interval)
                                                                    :worker-threads worker-threads
                                                                    :context-fn (constantly context)
-                                                                   :on-shutdown (partial on-shutdown ds)})]
-      (examples/add-shutdown-hook worker)
+                                                                   :on-shutdown (partial on-shutdown ds)
+                                                                   :install-jvm-shutdown-hook? true})]
       (worker/start! worker))))
