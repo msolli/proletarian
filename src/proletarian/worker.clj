@@ -7,19 +7,19 @@
   (:import (javax.sql DataSource)
            (java.time Instant Clock)))
 
-(defn println-logger
+(defn ^:private println-logger
   ([x]
    (println x))
   ([x data]
    (println x data)))
 
-(defn wrap-log-with-context
+(defn ^:private wrap-log-with-context
   [log context]
   (fn
     ([x] (log x context))
     ([x data] (log x (merge data context)))))
 
-(defn valid-retry-strategy?
+(defn ^:private valid-retry-strategy?
   [{:keys [retries delays] :as rs}]
   (and
     (map? rs)
@@ -30,12 +30,12 @@
           (every? nat-int? delays)
           (nat-int? (count delays))))))
 
-(defn valid-job-attempts?
+(defn ^:private valid-job-attempts?
   [{:proletarian.job/keys [attempts]}]
   (println attempts)
   (pos-int? attempts))
 
-(defn retry-data
+(defn ^:private retry-data
   "Convert a retry strategy to a concrete retry specification for a job. This
    is a map with keys :retries-left and :retry-at.
 
@@ -60,7 +60,7 @@
     (cond-> {:retries-left retries-left}
             (< 0 retries-left) (assoc :retry-at retry-at))))
 
-(defn maybe-retry!
+(defn ^:private maybe-retry!
   [conn config job e log]
   (let [job-id (:proletarian.job/job-id job)
         clock (::clock config)
@@ -76,7 +76,7 @@
         (db/delete-job! conn config job-id)))))
 
 
-(defn process-next-jobs!
+(defn ^:private process-next-jobs!
   "Gets the next job from the database table and runs it. When the job is
    finished, loops back and tries to get a new job from the database. Returns
    when no jobs are available for processing."
