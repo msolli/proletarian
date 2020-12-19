@@ -87,9 +87,10 @@ and the enqueuing of a job in another namespace:
 
 ## Installation
 
-Proletarian works with your existing PostgreSQL database. It uses the `SKIP 
-LOCKED` feature [that was introduced with PostgreSQL 9.5](https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5/), 
-so there's a hard requirement of at least version 9.5. 
+Proletarian works with your existing PostgreSQL database. It uses
+the `SKIP LOCKED`
+feature [that was introduced with PostgreSQL 9.5](https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5/),
+so there's a hard requirement of at least version 9.5.
 
 Proletarian works with any other database and SQL libraries you might be using,
 and does itself not depend on any such library.
@@ -108,17 +109,17 @@ schema and table names, but then you'll need to provide the
 
 ## Terminology
 
-### Queue Workers
+### Queue Worker
 
 A _queue worker_ is a process that works off a given named queue. It can have
-one or several _worker threads_, working in parallel. The worker threads pick
-jobs off a queue and run them. While there are jobs to be processed, the workers
-will work on them continuously until the queue is empty. Then they will poll the
+one or more _worker threads_, working in parallel. The worker threads pick jobs
+off a queue and run them. While there are jobs to be processed, the workers will
+work on them continuously until the queue is empty. Then they will poll the
 queue at a configurable interval.
 
 There is a default queue, `:proletarian/default`, which is the one used by
-`job/enqueue!` and `worker/create-worker-controller` if no queue is specified in
-the options.
+`job/enqueue!` and `worker/create-queue-worker` if no queue is specified in the
+options.
 
 You can create as many queue workers as you like, consuming jobs from different
 queues. The jobs will all live in the same table, but are differentiated by the
@@ -133,7 +134,7 @@ The parallelization factor for a given queue will be the number of queue worker
 processes (on different machines) multiplied by the number of threads in each
 queue worker.
 
-### Job Handlers
+### Job Handler
 
 ```clojure
 (require '[proletarian.job :as job])
@@ -150,6 +151,50 @@ queue worker.
 ```
 
 ## Retries, At Least Once Processing, and Idempotence
+
+### Shutdown and interrupts
+
+The _queue worker_, once started, will run until its `stop!` function is called.
+You should call this when you want to bring down your system. By default,
+Proletarian will install a JVM shutdown hook
+using `java.lang.Runtime.addShutdownHook`
+that will call the `stop!` function. You can disable this shutdown hook by
+setting the `install-jvm-shutdown-hook?` to false.
+
+When the shutdown sequence starts, threads in the queue worker thread pool will
+receive an interrupt. How these interrupts are handled depends on where in the
+poll/run cycle each worker thread is. If a worker thread is polling, it will
+simply stop polling. If the worker thread is busy running a job, it's the job's
+responsibility to handle interrupts.
+
+Most of the time, if you have jobs that run quickly (less than a few seconds),
+you can simply ignore interrupts. Your job will finish, and the worker thread
+will not pick up any more jobs.
+
+On the other hand, if your job takes a long time to finish, you should handle
+interrupts one of two ways:
+
+1. By catching `InterruptedException`. If your job calls (directly on
+   indirectly) a method that throws `InterruptedException`
+   (such as `Object.wait`, `Thread.sleep`, and `Thread.join`), you can wrap your
+   job handler code in a try/catch that catches `InterruptedException`. Do this
+   if you can meaningfully finish the job this way, or if you don't want the job
+   to be run again when the queue worker starts up again.
+2. By regularly checking the thread's interrupt status
+   using `Thread.isInterrupted()`. If you have CPU-intensive work that takes a
+   lot of time, you could chunk the work such that you can read the interrupt
+   status in-between chunks, and finish the job gracefully if interrupted.
+
+In general, if you stick to enqueuing jobs that require only a few seconds to
+run and that are safe to be run again (they are _idempotent_), then you can
+ignore interrupts.
+
+There is lots more to be said about this topic. There
+is [an article by Brian Goetz](https://www.ibm.com/developerworks/library/j-jtp05236/index.html)
+that goes into great detail on how to implement cancelable tasks.
+
+If you have specific questions, or even advice you want to share regarding this
+topic, please [open an issue](https://github.com/msolli/proletarian/issues).
 
 ## Acknowledgements
 
