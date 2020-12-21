@@ -155,11 +155,10 @@ queue worker.
 ### Shutdown and interrupts
 
 The _queue worker_, once started, will run until its `stop!` function is called.
-You should call this when you want to bring down your system. By default,
-Proletarian will install a JVM shutdown hook
-using `java.lang.Runtime.addShutdownHook`
-that will call the `stop!` function. You can disable this shutdown hook by
-setting the `install-jvm-shutdown-hook?` to false.
+You should call this when you want to bring down your system. If you set the
+`install-jvm-shutdown-hook?` option to true, Proletarian will install a JVM
+shutdown hook using `java.lang.Runtime.addShutdownHook`
+that will call the `stop!` function.
 
 When the shutdown sequence starts, threads in the queue worker thread pool will
 receive an interrupt. How these interrupts are handled depends on where in the
