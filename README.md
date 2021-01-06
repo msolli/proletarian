@@ -70,13 +70,13 @@ and the enqueuing of a job in another namespace:
 
 (defn some-handler [system request]
   (jdbc/with-transaction [tx (:db system)]
-                         ;; Do some business logic here
-                         ;; Write some result to the database
-                         ;; Enqueue the job:
-                         (job/enqueue! tx ::confirmation-email
-                                       {:email email-address, :other-data-1 :foo, :other-data-2 :bar})
-                         ;; Return a response
-                         response))
+    ;; Do some business logic here
+    ;; Write some result to the database
+    ;; Enqueue the job:
+    (job/enqueue! tx ::confirmation-email
+      {:email email-address, :other-data-1 :foo, :other-data-2 :bar})
+    ;; Return a response
+    response))
 
 ;; Implement the proletarian.job/handle! multimethod for the job type.
 (defmethod job/handle! ::confirmation-email
@@ -106,6 +106,17 @@ library like [Flyway](https://flywaydb.org/) or
 schema and table names, but then you'll need to provide the
 `:proletarian/job-table` and `:proletarian/archived-job-table` options to
 `create-worker-controller`.
+
+## Examples
+
+This repository contains a few examples that demonstrates features and usage
+patterns. You can run these by cloning this repo, execute a script to set up
+an example Proletarian database, and then run the examples from your 
+terminal. All the details are in the example docs:
+
+- [Example A - The Basics](./doc/example-a.md)
+- [Example B - Failure and Retries](./doc/example-b.md)
+- [Example C - Job Interruption and Queue Worker Shutdown](./doc/example-c.md)
 
 ## Terminology
 
@@ -205,6 +216,6 @@ for inspiration how to do the example database install scripts.
 
 ## License
 
-Copyright © 2020 Martin Solli
+Copyright © 2020-2021 Martin Solli
 
 Distributed under the Eclipse Public License, same as Clojure.
