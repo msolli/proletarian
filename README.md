@@ -186,7 +186,7 @@ will not pick up any more jobs.
 On the other hand, if your job takes a long time to finish, you should handle
 interrupts one of two ways:
 
-1. By catching `InterruptedException`. If your job calls (directly on
+1. By catching `InterruptedException`. If your job calls (directly or
    indirectly) a method that throws `InterruptedException`
    (such as `Object.wait`, `Thread.sleep`, and `Thread.join`), you can wrap your
    job handler code in a try/catch that catches `InterruptedException`. Do this
