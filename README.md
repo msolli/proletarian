@@ -92,8 +92,10 @@ the `SKIP LOCKED`
 feature [that was introduced with PostgreSQL 9.5](https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5/),
 so there's a hard requirement of at least version 9.5.
 
-Proletarian works with any other database and SQL libraries you might be using,
-and does itself not depend on any such library.
+Proletarian works with any Clojure database library
+([next.jdbc](https://github.com/seancorfield/next-jdbc),
+[clojure.java.jdbc](https://github.com/clojure/java.jdbc)) you might be using,
+and does not itself depend on any such library.
 
 You'll have to create two database tables, one for queueing jobs, and one for
 keeping a record of finished jobs. These are defined in `database/tables.sql` in
