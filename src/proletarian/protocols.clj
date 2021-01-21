@@ -1,6 +1,6 @@
 (ns proletarian.protocols)
 
-(defprotocol WorkerController
+(defprotocol QueueWorker
   "The process that runs the job workers for a particular queue."
   (start! [_]
     "Sets up a thread pool and starts polling for jobs.")

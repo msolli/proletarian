@@ -13,7 +13,7 @@
   (let [ds (jdbc/get-datasource (:jdbc-url examples/config))]
     (examples/preamble ds)
     (println "Starting worker for :proletarian/default queue with polling interval 1 s")
-    (let [worker (worker/create-worker-controller ds {:proletarian/polling-interval-ms 1000
-                                                      :proletarian/on-shutdown (partial on-shutdown ds)
-                                                      :proletarian/install-jvm-shutdown-hook? true})]
+    (let [worker (worker/create-queue-worker ds {:proletarian/polling-interval-ms 1000
+                                                 :proletarian/on-shutdown (partial on-shutdown ds)
+                                                 :proletarian/install-jvm-shutdown-hook? true})]
       (worker/start! worker))))

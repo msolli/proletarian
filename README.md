@@ -46,7 +46,7 @@ and the enqueuing of a job in another namespace:
 (ns your-app.workers
   "You'll probably want to use a component state library (Component, Integrant,
    Mount, or some such) for managing the worker state. For this example we're
-   just def-ing the worker. The worker controller constructor functions takes
+   just def-ing the worker. The queue worker constructor function takes
    a javax.sql.DataSource as its first (and only required) argument. You
    probably already have a data-source at hand in your application already. Here
    we'll use next.jdbc to get one from a JDBC connection URL."
@@ -55,7 +55,7 @@ and the enqueuing of a job in another namespace:
 
 (def email-worker
   (let [ds (jdbc/get-datasource "jdbc:postgresql://...")]
-    (worker/create-worker-controller ds)))
+    (worker/create-queue-worker ds)))
 
 (worker/start! email-worker)
 ```
@@ -107,14 +107,14 @@ library like [Flyway](https://flywaydb.org/) or
 `database/tables.sql` file into a migration file. You can change the PostgreSQL
 schema and table names, but then you'll need to provide the
 `:proletarian/job-table` and `:proletarian/archived-job-table` options to
-`create-worker-controller`.
+`create-queue-worker`.
 
 ## Examples
 
 This repository contains a few examples that demonstrates features and usage
-patterns. You can run these by cloning this repo, execute a script to set up
-an example Proletarian database, and then run the examples from your 
-terminal. All the details are in the example docs:
+patterns. You can run these by cloning this repo, execute a script to set up an
+example Proletarian database, and then run the examples from your terminal. All
+the details are in the example docs:
 
 - [Example A - The Basics](./doc/example-a.md)
 - [Example B - Failure and Retries](./doc/example-b.md)

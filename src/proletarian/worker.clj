@@ -80,7 +80,7 @@
   "Gets the next job from the database table and runs it. When the job is
    finished, loops back and tries to get a new job from the database. Returns
    when no jobs are available for processing."
-  [data-source queue context-fn log stop-controller! config]
+  [data-source queue context-fn log stop-queue-worker! config]
   (try
     (let [log (wrap-log-with-context log {:worker-thread-id (::worker-thread-id config)})]
       (log ::polling-for-jobs)
@@ -114,10 +114,10 @@
           (recur))))
     (catch InterruptedException _
       (log ::worker-interrupted)
-      (stop-controller!))
+      (stop-queue-worker!))
     (catch Throwable e
       (log ::job-worker-error {:throwable e})
-      (stop-controller!))))
+      (stop-queue-worker!))))
 
 (defn ^:private create-shutdown-hook
   [worker]
@@ -145,10 +145,10 @@
     (finally
       (reset! hook nil))))
 
-(defn create-worker-controller
-  ([data-source] (create-worker-controller data-source nil))
+(defn create-queue-worker
+  ([data-source] (create-queue-worker data-source nil))
   ([data-source {:proletarian/keys [queue job-table archived-job-table serializer context-fn log
-                                    worker-controller-id polling-interval-ms worker-threads await-termination-timeout-ms
+                                    queue-worker-id polling-interval-ms worker-threads await-termination-timeout-ms
                                     install-jvm-shutdown-hook? on-shutdown
                                     clock]
                  :or {queue db/DEFAULT_QUEUE
@@ -164,33 +164,33 @@
                       on-shutdown #()
                       clock (Clock/systemUTC)}}]
    {:pre [(instance? DataSource data-source)]}
-   (let [worker-controller-id (or (some-> worker-controller-id str) (str "proletarian[" queue "]"))
-         log (wrap-log-with-context log {::worker-controller-id worker-controller-id})
+   (let [queue-worker-id (or (some-> queue-worker-id str) (str "proletarian[" queue "]"))
+         log (wrap-log-with-context log {::queue-worker-id queue-worker-id})
          executor (atom nil)
          shutdown-hook (atom nil)
          config {::db/job-table job-table
                  ::db/archived-job-table archived-job-table
                  ::db/serializer serializer
-                 ::worker-controller-id worker-controller-id
+                 ::queue-worker-id queue-worker-id
                  ::worker-threads worker-threads
                  ::polling-interval-ms polling-interval-ms
                  ::await-termination-timeout-ms await-termination-timeout-ms
                  ::clock clock}]
-     (reify p/WorkerController
+     (reify p/QueueWorker
        (start! [this]
          (when-not @executor
            (when install-jvm-shutdown-hook? (install-jvm-shutdown-hook! this shutdown-hook))
-           (let [{::keys [worker-controller-id worker-threads polling-interval-ms]} config
-                 stop-controller! #(future
-                                     (try
-                                       (p/stop! this)
-                                       (catch Throwable e
-                                         (log ::worker-controller-shutdown-error {:throwable e}))))
+           (let [{::keys [queue-worker-id worker-threads polling-interval-ms]} config
+                 stop-queue-worker! #(future
+                                       (try
+                                         (p/stop! this)
+                                         (catch Throwable e
+                                           (log ::queue-worker-shutdown-error {:throwable e}))))
                  work! (fn [worker-thread-id]
-                         (process-next-jobs! data-source queue context-fn log stop-controller!
+                         (process-next-jobs! data-source queue context-fn log stop-queue-worker!
                                              (assoc config
                                                ::worker-thread-id worker-thread-id)))]
-             (reset! executor (executor/create-scheduled-executor worker-threads worker-controller-id))
+             (reset! executor (executor/create-scheduled-executor worker-threads queue-worker-id))
              (dotimes [i worker-threads]
                (executor/schedule @executor (partial work! (inc i)) polling-interval-ms)
                ;; Add some jitter to the worker threads:
@@ -207,9 +207,9 @@
              true)))))))
 
 (defn start!
-  [worker-controller]
-  (p/start! worker-controller))
+  [queue-worker]
+  (p/start! queue-worker))
 
 (defn stop!
-  [worker-controller]
-  (p/stop! worker-controller))
+  [queue-worker]
+  (p/stop! queue-worker))
