@@ -2,79 +2,12 @@
   (:require [proletarian.db :as db]
             [proletarian.executor :as executor]
             [proletarian.job :as job]
+            [proletarian.log :as log]
             [proletarian.protocols :as p]
+            [proletarian.retry :as retry]
             [proletarian.transit :as transit])
   (:import (javax.sql DataSource)
            (java.time Instant Clock)))
-
-(defn ^:private println-logger
-  ([x]
-   (println x))
-  ([x data]
-   (println x data)))
-
-(defn ^:private wrap-log-with-context
-  [log context]
-  (fn
-    ([x] (log x context))
-    ([x data] (log x (merge data context)))))
-
-(defn ^:private valid-retry-strategy?
-  [{:keys [retries delays] :as rs}]
-  (and
-    (map? rs)
-    (nat-int? retries)
-    (or (nil? delays)
-        (and
-          (vector? delays)
-          (every? nat-int? delays)
-          (nat-int? (count delays))))))
-
-(defn ^:private valid-job-attempts?
-  [{:proletarian.job/keys [attempts]}]
-  (println attempts)
-  (pos-int? attempts))
-
-(defn ^:private retry-data
-  "Convert a retry strategy to a concrete retry specification for a job. This
-   is a map with keys :retries-left and :retry-at.
-
-   :retries-left is the number of retries left
-   :retry-at is the time at which the next retry should be attempted
-
-   This function is defined for valid retry strategies, and for jobs with
-   attempts greater than zero."
-  [retry-strategy job clock]
-  {:pre [(valid-retry-strategy? retry-strategy)
-         (valid-job-attempts? job)]}
-  (let [attempts (::job/attempts job)
-        retries (:retries retry-strategy)
-        delays (:delays retry-strategy)
-        retries-left (if (zero? retries)
-                       0
-                       (- (inc retries) attempts))
-        retry-at (.plusMillis (Instant/now clock)
-                              (if (empty? delays)
-                                0
-                                (get delays (dec attempts) (nth delays (dec (count delays))))))]
-    (cond-> {:retries-left retries-left}
-            (< 0 retries-left) (assoc :retry-at retry-at))))
-
-(defn ^:private maybe-retry!
-  [conn config job e log]
-  (let [job-id (:proletarian.job/job-id job)
-        clock (::clock config)
-        retry-spec (some-> (job/retry-strategy job e) (retry-data job clock))
-        finished-at (Instant/now clock)]
-    (if (pos-int? (:retries-left retry-spec))
-      (let [{:keys [retries-left retry-at]} retry-spec]
-        (log ::retrying {:retry-at retry-at :retries-left retries-left})
-        (db/retry-at! conn config (:proletarian.job/job-id job) retry-at))
-      (do
-        (log ::not-retrying {:retry-spec retry-spec})
-        (db/archive-job! conn config job-id :failure finished-at)
-        (db/delete-job! conn config job-id)))))
-
 
 (defn ^:private process-next-jobs!
   "Gets the next job from the database table and runs it. When the job is
@@ -82,19 +15,18 @@
    when no jobs are available for processing."
   [data-source queue context-fn log stop-queue-worker! config]
   (try
-    (let [log (wrap-log-with-context log {:worker-thread-id (::worker-thread-id config)})]
+    (let [log (log/wrap log {:worker-thread-id (::worker-thread-id config)})]
       (log ::polling-for-jobs)
       (loop []
         (when
-          (db/with-tx
-            data-source
+          (db/with-tx data-source
             (fn [conn]
               (when-let [job (db/get-next-job conn config queue)]
                 (let [{:proletarian.job/keys [job-id job-type payload attempts] :as job}
                       (update job :proletarian.job/attempts inc)
 
                       clock (::clock config)
-                      log (wrap-log-with-context log {:job-id job-id :job-type job-type :attempt attempts})]
+                      log (log/wrap log {:job-id job-id :job-type job-type :attempt attempts})]
                   (try
                     (log ::handling-job)
                     (job/handle-job!
@@ -109,7 +41,7 @@
                       (.interrupt (Thread/currentThread)))
                     (catch Exception e
                       (log ::handle-job-exception {:exception e})
-                      (maybe-retry! conn config job e log))))
+                      (retry/maybe-retry! conn config job e log))))
                 (not (Thread/interrupted)))))
           (recur))))
     (catch InterruptedException _
@@ -156,7 +88,7 @@
                       archived-job-table db/DEFAULT_ARCHIVED_JOB_TABLE
                       serializer (transit/create-serializer)
                       context-fn (constantly {})
-                      log println-logger
+                      log log/println-logger
                       polling-interval-ms 100
                       worker-threads 1
                       await-termination-timeout-ms 10000
@@ -165,7 +97,7 @@
                       clock (Clock/systemUTC)}}]
    {:pre [(instance? DataSource data-source)]}
    (let [queue-worker-id (or (some-> queue-worker-id str) (str "proletarian[" queue "]"))
-         log (wrap-log-with-context log {::queue-worker-id queue-worker-id})
+         log (log/wrap log {::queue-worker-id queue-worker-id})
          executor (atom nil)
          shutdown-hook (atom nil)
          config {::db/job-table job-table

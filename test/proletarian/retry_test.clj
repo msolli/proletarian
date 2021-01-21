@@ -1,6 +1,6 @@
-(ns proletarian.worker-test
+(ns proletarian.retry-test
   (:require [clojure.test :refer :all]
-            [proletarian.worker :as sut])
+            [proletarian.retry :as sut])
   (:import (java.time Clock Instant ZoneId)))
 
 (deftest retry-data-test
@@ -40,36 +40,36 @@
 (deftest valid-retry-strategy?-test
   (testing "valid values"
     (are [x] (sut/valid-retry-strategy? x)
-      ;; Don't retry
-      {:retries 0}
-      ;; Retry once immediately
-      {:retries 1}
-      ;; Retry ten times with no delay
-      {:retries 10}
-      ;; Same
-      {:retries 10
-       :delays []}
-      ;; Same
-      {:retries 10
-       :delays [0]}
-      ;; Retries ten times with one second delay
-      {:retries 10
-       :delays [1000]}
-      ;; Retries two times, the first after two seconds, the second after four seconds
-      {:retries 2
-       :delays [2000 4000]}
-      ;; Same (extra delays discarded)
-      {:retries 2
-       :delays [2000 4000 8000 8000]}))
+             ;; Don't retry
+             {:retries 0}
+             ;; Retry once immediately
+             {:retries 1}
+             ;; Retry ten times with no delay
+             {:retries 10}
+             ;; Same
+             {:retries 10
+              :delays []}
+             ;; Same
+             {:retries 10
+              :delays [0]}
+             ;; Retries ten times with one second delay
+             {:retries 10
+              :delays [1000]}
+             ;; Retries two times, the first after two seconds, the second after four seconds
+             {:retries 2
+              :delays [2000 4000]}
+             ;; Same (extra delays discarded)
+             {:retries 2
+              :delays [2000 4000 8000 8000]}))
 
   (testing "invalid values"
     (are [x] (not (sut/valid-retry-strategy? x))
-      nil
-      {}
-      {:retries 1.1}
-      {:retries -1}
-      {:retries 1
-       :delays '()}
-      {:retries 1
-       :delays [-1]})))
+             nil
+             {}
+             {:retries 1.1}
+             {:retries -1}
+             {:retries 1
+              :delays '()}
+             {:retries 1
+              :delays [-1]})))
 
