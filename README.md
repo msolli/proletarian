@@ -149,21 +149,90 @@ queue worker.
 
 ### Job Handler
 
+The _job handler_ for a job-type is the function that the Proletarian queue
+worker invokes when a job of that type is pulled off the queue.
+
+You implement the job handler by implementing the `proletarian.job/handle!`
+multimethod with the job-type as dispatch-value. The job-type is a Clojure
+keyword (optionally namespaced). You provide this as the second argument to
+`proletarian.job/enqueue!` when enqueueing a job.
+
+```clojure
+(require '[proletarian.job :as job])
+
+(defn do-something! [db-conn foo]
+  ;; Do stuff here
+  ;; Enqueue a job:
+  (job/enqueue! db-conn ::the-job-type foo)
+  )
+
+(defmethod job/handle! ::the-job-type
+  [context job-type payload]
+  ;; Do the work here.
+  ;; The value of payload is whatever was passed as third argument to 
+  ;; job/enqueue! (the value of foo in do-something! in this case).
+  )
+```
+
+## At Least Once Processing, Idempotence, and Retries
+
+Proletarian goes to great lengths to ensure that no jobs are lost due to
+exceptions, network errors, database failure, computers catching fire or other
+facts of life. It relies on PostgreSQL transactions to protect the integrity of
+the jobs tables while polling and running jobs. A job will not be removed from
+the queue until it has finished successfully. It is moved to the archive table
+in the same transaction.
+
+The guarantee is that Proletarian will run each job _at least once_. There are
+failure scenarios where a job can run and finish successfully, but the database
+operations in the transaction that moves the job off the queue can't be
+completed. These are unlikely events, like the database going offline at just
+the moment before the job was to be moved to the archive table. Should this
+happen, the job will get picked up and run again when the queue worker comes
+online again (or by a different thread or machine, depending on your setup).
+
+The flip side of the _at least once_ guarantee is that your job handler must be
+idempotent, or your business rules must tolerate that the effects of your job
+handler happen more than once (in some unlikely cases).
+
+### Retries
+
+Jobs that throw an exception (a `java.lang.Exception` or subclass, but not other
+instances of `Throwable`) will be retried according to their _retry strategy_.
+The default retry strategy is to not retry.
+
+You define a retry strategy for a job-type by implementing
+the `proletarian.job/retry-strategy` with the job-type as dispatch-value. The
+queue worker calls this multimethod when an exception is caught for a job
+handler. The job and the exception is passed as arguments. You can use these to
+make informed decisions about how to proceed. The exception might for example
+contain information on when to retry an HTTP call (from a
+[Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
+HTTP header). In most cases, however, a simple static retry strategy will
+suffice.
+
+The retry strategy is a Clojure map with the keys `:retries` and `:delays`. ...
+
 ```clojure
 (require '[proletarian.job :as job])
 
 (defmethod job/handle! ::the-job-type
   [context job-type payload]
-  ;; Do the work here.
+  ;; Do stuff that might throw an exception here
   )
 
 (defmethod job/retry-strategy ::the-job-type
   [job throwable]
   {:retries 4
-   :delays [1000 5000]})
+   :delays [1000 5000]}
+  ;; This retry strategy specifies that the job should be retried up to four 
+  ;; times, for a total of five attempts. The first retry should happen 
+  ;; one second after the first attempt failed. The remaining attempts should 
+  ;; happen five seconds after the previous attempt failed.
+  ;; After four retries, if the job was still failing, it is not retried 
+  ;; anymore. It is moved to the archived-job-table with a failure status.
+  )
 ```
-
-## Retries, At Least Once Processing, and Idempotence
 
 ### Shutdown and interrupts
 
