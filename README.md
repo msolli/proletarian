@@ -1,6 +1,7 @@
 # Proletarian
 
 [![Download Proletarian from Clojars](https://img.shields.io/clojars/v/msolli/proletarian.svg)](https://clojars.org/msolli/proletarian)
+[![Read documentation at Cljdoc](https://cljdoc.org/badge/msolli/proletarian)](https://cljdoc.org/d/msolli/proletarian/CURRENT)
 
 A durable job queuing and worker system for Clojure backed by PostgreSQL.
 
