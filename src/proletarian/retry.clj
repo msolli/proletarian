@@ -1,4 +1,5 @@
 (ns proletarian.retry
+  {:no-doc true}
   (:require [proletarian.db :as db]
             [proletarian.job :as job])
   (:import (java.time Instant)))

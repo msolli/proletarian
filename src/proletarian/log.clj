@@ -1,4 +1,5 @@
-(ns proletarian.log)
+(ns proletarian.log
+  {:no-doc true})
 
 (defn println-logger
   ([x]

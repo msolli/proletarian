@@ -9,7 +9,7 @@
   "This multimethod is called by the Proletarian poller when a job is ready
    for execution. Implement this multimethod for your job type. The return
    value from your handler is discarded. If it throws, it is retried according
-   to its retry strategy (see retry-strategy).
+   to its retry strategy (see [[retry-strategy]]).
 
    If handle-job! is missing an implementation for a job type found in the job
    queue, it would result in an exception. Then the job would be retried
@@ -30,9 +30,10 @@
    the job record and the caught exception.
 
    It should return a map that specifies the retry strategy:
-   :retries The number of retries (note that the total number of attempts will
+
+   `:retries` The number of retries (note that the total number of attempts will
    be one larger than this number).
-   :delays A vector of numbers of milliseconds to wait between retries.
+   `:delays` A vector of numbers of milliseconds to wait between retries.
 
    Do consider the polling interval and the job queue contention when planning
    your retry strategy. The retry delay should be thought of as the earliest
@@ -41,15 +42,19 @@
    the queue before this one.
 
    Examples:
+   ```clojure
    {:retries 2
     :delays [1000 5000]}
-   => This will retry two times. The first time after 1 second and the second
-      after 5 seconds.
+   ```
+   This will retry two times. The first time after 1 second and the second
+   after 5 seconds.
 
+   ```clojure
    {:retries 4
     :delays [2000 10000]}
-   => This will retry four times. The first time after 2 seconds, and the last
-      three times after 10 seconds."
+   ```
+   This will retry four times. The first time after 2 seconds, and the last
+   three times after 10 seconds."
   (fn [job _throwable]
     (::job-type job)))
 

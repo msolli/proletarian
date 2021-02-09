@@ -1,4 +1,5 @@
 (ns proletarian.db
+  {:no-doc true}
   (:require [clojure.edn :as edn]
             [proletarian.protocols :as p])
   (:import (java.sql Connection Timestamp)

@@ -42,8 +42,8 @@ nice advantages to having your job queue in PostgreSQL as well:
 
 ## Usage
 
-Here is basic example, showing the creation of a queue worker in one namespace,
-and the enqueuing of a job in another namespace:
+Here is a basic example, showing the creation of a queue worker in one 
+namespace, and the enqueuing of a job in another namespace:
 
 ```clojure
 (ns your-app.workers
@@ -54,7 +54,7 @@ and the enqueuing of a job in another namespace:
    probably already have a data-source at hand in your application already. Here
    we'll use next.jdbc to get one from a JDBC connection URL."
   (:require [next.jdbc :as jdbc]
-    [proletarian.worker :as worker]))
+            [proletarian.worker :as worker]))
 
 (def email-worker
   (let [ds (jdbc/get-datasource "jdbc:postgresql://...")]
@@ -69,7 +69,7 @@ and the enqueuing of a job in another namespace:
    handle the request, write something to the database, and enqueue a job.
    We'll do this in a transaction with a little bit of help from next.jdbc."
   (:require [next.jdbc :as jdbc]
-    [proletarian.job :as job]))
+            [proletarian.job :as job]))
 
 (defn some-handler [system request]
   (jdbc/with-transaction [tx (:db system)]
@@ -88,7 +88,20 @@ and the enqueuing of a job in another namespace:
   )
 ```
 
+
+
 ## Installation
+
+Add Proletarian to your [`deps.edn`](https://clojure.org/guides/deps_and_cli)
+file:
+```clojure
+msolli/proletarian {:mvn/version "1.0.21-alpha"}
+```
+
+Or to your [`project.clj`](https://github.com/technomancy/leiningen/blob/stable/sample.project.clj) for Leiningen:
+```clojure
+[msolli/proletarian "1.0.21-alpha"]
+```
 
 Proletarian works with your existing PostgreSQL database. It uses
 the `SKIP LOCKED`
@@ -101,8 +114,10 @@ Proletarian works with any Clojure database library
 and does not itself depend on any such library.
 
 You'll have to create two database tables, one for queueing jobs, and one for
-keeping a record of finished jobs. These are defined in `database/tables.sql` in
-this repository, along with a PostgreSQL _schema_ to contain them, and an index.
+keeping a record of finished jobs. These are defined in [`database/tables.sql`
+in this repository](./blob/main/database/tables.sql), along with a PostgreSQL 
+[_schema_](https://www.postgresql.org/docs/current/ddl-schemas.html) to contain
+them, and an index.
 Before using the library, you must install these tables in your database. There
 are many ways you can do this. You are probably already using a migration
 library like [Flyway](https://flywaydb.org/) or
@@ -205,16 +220,17 @@ instances of `Throwable`) will be retried according to their _retry strategy_.
 The default retry strategy is to not retry.
 
 You define a retry strategy for a job-type by implementing
-the `proletarian.job/retry-strategy` with the job-type as dispatch-value. The
-queue worker calls this multimethod when an exception is caught for a job
-handler. The job and the exception is passed as arguments. You can use these to
-make informed decisions about how to proceed. The exception might for example
-contain information on when to retry an HTTP call (from a
-[Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
+the [`proletarian.job/retry-strategy` multimethod](https://cljdoc.org/d/msolli/proletarioan/CURRENT/api/proletarian.job#retry-strategy)
+with the job-type as dispatch-value. The queue worker calls this multimethod
+when an exception is caught for a job handler. The job and the exception is
+passed as arguments. You can use these to make informed decisions about how to
+proceed. The exception might for example contain information on when to retry an
+HTTP call (from a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
 HTTP header). In most cases, however, a simple static retry strategy will
 suffice.
 
-The retry strategy is a Clojure map with the keys `:retries` and `:delays`. ...
+The retry strategy is a Clojure map with the keys `:retries` and `:delays`. See
+comment in code below for explanation.
 
 ```clojure
 (require '[proletarian.job :as job])
@@ -237,7 +253,7 @@ The retry strategy is a Clojure map with the keys `:retries` and `:delays`. ...
   )
 ```
 
-### Shutdown and interrupts
+### Shutdown and Interrupts
 
 The _queue worker_, once started, will run until its `stop!` function is called.
 You should call this when you want to bring down your system. If you set the
@@ -286,7 +302,7 @@ Many thanks for [Christian Johansen](https://github.com/cjohansen/) for help
 with designing the library and database schema.
 
 Hat tip to the creators of [MessageDB](https://github.com/message-db/message-db)
-for inspiration how to do the example database install scripts.
+for how to do the example database install scripts.
 
 ## License
 

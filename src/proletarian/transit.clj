@@ -1,4 +1,5 @@
 (ns proletarian.transit
+  {:no-doc true}
   (:require [cognitect.transit :as transit]
             [proletarian.protocols :as p])
   (:import (java.io ByteArrayInputStream ByteArrayOutputStream)

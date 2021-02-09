@@ -1,4 +1,5 @@
 (ns proletarian.executor
+  {:no-doc true}
   (:import
     (java.util.concurrent Executors RejectedExecutionException ScheduledExecutorService ThreadFactory TimeUnit)))
 
