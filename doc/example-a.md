@@ -61,7 +61,9 @@ is used.)
 ### 2. Run the Queue Worker
 
 In one of your terminal windows, run this command to start the Queue Worker:
-`clj -X:examples:example-a example-a.worker/run`
+```
+$ clj -X:examples:example-a example-a.worker/run
+```
 
 It should start a process that polls the default queue for jobs every 5 seconds:
 
@@ -81,7 +83,10 @@ Leave this process running while you continue to step 3.
 
 What is happening here, is that we've started a Queue Worker thread pool in a
 JVM process that continuously polls the jobs table for new work to be done. The
-polling interval is configurable - in this example it is 5 seconds.
+polling interval is configurable - in this example it is 5 seconds. (In a
+production system you'd probably use a much smaller polling interval - the 
+default is 100 ms. For this example, though, it is much easier to see what's
+going on with a larger polling interval.)
 
 The code for this can be found in
 the [`example-a.worker`](https://github.com/msolli/proletarian/blob/main/examples/a/example_a/worker.clj)
@@ -90,7 +95,9 @@ namespace.
 ### 3. Enqueue a job
 
 In your other terminal window, run this command to enqueue a job:
-`clj -X:examples:example-a example-a.enqueue-jobs/run`
+```
+$ clj -X:examples:example-a example-a.enqueue-jobs/run
+```
 
 It should add a job to the default queue and print the job details:
 
