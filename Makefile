@@ -24,5 +24,27 @@ deploy: dist/proletarian.jar
 	git tag -a v$(VERSION) -m "Version $(VERSION)"
 	git push origin v$(VERSION)
 
+mvn.install: dist/proletarian.jar
+	mvn install:install-file -Dfile=dist/proletarian.jar -DpomFile=pom.xml
+
+# Run the cljdoc process for reviewing the docs on
+# localhost:8000/d/msolli/proletarian before publishing.
+# Run `make cljdoc.import` in another terminal window to import the project.
+cljdoc.run:
+	docker pull cljdoc/cljdoc
+	docker run --rm --publish 8000:8000 --volume "$(HOME)/.m2:/root/.m2" --volume /tmp/cljdoc:/app/data cljdoc/cljdoc
+
+# Import the docs to cljdoc
+cljdoc.import: mvn.install
+	docker run --rm \
+	--volume "$(HOME)/.m2:/root/.m2" \
+	--volume /tmp/cljdoc:/app/data \
+	--entrypoint clojure cljdoc/cljdoc \
+	-A:cli ingest \
+	--project msolli/proletarian \
+	--version $(VERSION) \
+	--git https://github.com/msolli/proletarian \
+	--rev $(shell git rev-parse HEAD)
+
 clean:
 	rm -rf dist
