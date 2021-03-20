@@ -2,7 +2,7 @@
   (:require [proletarian.db :as db]
             [proletarian.transit :as transit])
   (:import (java.sql Connection)
-           (java.time Instant)
+           (java.time Clock Instant)
            (java.util UUID)))
 
 (defmulti handle-job!
@@ -63,17 +63,42 @@
 
 
 (defn enqueue!
+  "Enqueue a job in the Proletarian job queue.
+
+   `conn` is a [[java.sql.Connection]] database connection.\\
+   `job-type` is a keyword that identifies the job type. You implement
+   [[handle-job!]] and [[retry-strategy]] (optional) for this keyword
+   for Proletarian to be able to handle it.\\
+   `payload` is the data that the job needs. It will be encoded and decoded
+   using the serializer (see Options).
+
+   ### Options
+   The optional fourth argument is an options map with the following keys, all
+   optional with default values:
+   `:queue` - A keyword with the name of the queue. The default value is
+   `:proletarian/default`.\\
+   `:job-table` - Which PostgreSQL table to write the job to. The default is
+   `proletarian.job`. You should only have to override this if you changed the
+   default table name during installation.\\
+   `:serializer` - An implementation of the [[proletarian.protocols/Serializer]]
+   protocol. The default is a Transit serializer (see
+   [[proletarian.transit/create-serializer]]). If you override this, you should
+   use the same serializer for [[proletarian.worker/create-queue-worker]].\\
+   `:uuid-fn` - A function for generating UUIDs. Used in testing. The
+   default is [[java.util.UUID/randomUUID]].\\
+   `:clock` - The [[java.time.Clock]] to use for getting the current time. Used
+   in testing. The default is [[java.time.Clock/systemUTC]]."
   ([conn job-type payload]
    (enqueue! conn job-type payload nil))
-  ([conn job-type payload {:proletarian/keys [queue job-table serializer uuid-fn now-fn]
+  ([conn job-type payload {:proletarian/keys [queue job-table serializer uuid-fn clock]
                            :or {queue db/DEFAULT_QUEUE
                                 job-table db/DEFAULT_JOB_TABLE
                                 serializer (transit/create-serializer)
                                 uuid-fn #(UUID/randomUUID)
-                                now-fn #(Instant/now)}}]
+                                clock (Clock/systemUTC)}}]
    {:pre [(instance? Connection conn)]}
    (let [job-id (uuid-fn)
-         now (now-fn)]
+         now (Instant/now clock)]
      (db/enqueue! conn
                   {::db/job-table job-table, ::db/serializer serializer}
                   {::job-id job-id
