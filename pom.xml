@@ -4,7 +4,7 @@
   <packaging>jar</packaging>
   <groupId>msolli</groupId>
   <artifactId>proletarian</artifactId>
-  <version>1.0.30-alpha</version>
+  <version>1.0.32-alpha</version>
   <name>proletarian</name>
   <dependencies>
     <dependency>
@@ -29,7 +29,7 @@
   <scm>
     <connection>scm:git:git://github.com/msolli/proletarian.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/msolli/proletarian.git</developerConnection>
-    <tag>v1.0.30-alpha</tag>
+    <tag>v1.0.32-alpha</tag>
     <url>https://github.com/msolli/proletarian</url>
   </scm>
   <repositories>

@@ -10,9 +10,8 @@
            (java.time Instant Clock)))
 
 (defn ^:private process-next-jobs!
-  "Gets the next job from the database table and runs it. When the job is
-   finished, loops back and tries to get a new job from the database. Returns
-   when no jobs are available for processing."
+  "Gets the next job from the database table and runs it. When the job is finished, loops back and tries to get a new
+   job from the database. Returns when no jobs are available for processing."
   [data-source queue context-fn log stop-queue-worker! config]
   (try
     (let [log (log/wrap log {:worker-thread-id (::worker-thread-id config)})]
@@ -78,6 +77,41 @@
       (reset! hook nil))))
 
 (defn create-queue-worker
+  "Create and return a Queue Worker, which is an instance of [[proletarian.protocols/QueueWorker]]. After creation, the
+   Queue Worker must be started using [[start!]], and can be stopped using [[stop!]].
+
+   `data-source` is a [[javax.sql.DataSource]] factory for creating connections to the PostgreSQL database.
+
+   ### Options
+   The optional second argument is an options map with the following keys, all optional with default values:\\
+   `:queue` - A keyword with the name of the queue. The default value is `:proletarian/default`.\\
+   `:job-table` - Which PostgreSQL table to write the job to. The default is `proletarian.job`. You should only have to
+   override this if you changed the default table name during installation.\\
+   `:archived-job-table` - Which PostgreSQL table to write archived jobs to. The default is `proletarian.archived_job`.
+   You should only have to override this if you changed the default table name during installation.\\
+   `:serializer` - An implementation of the [[proletarian.protocols/Serializer]] protocol. The default is a Transit
+   serializer (see [[proletarian.transit/create-serializer]]). If you override this, you should use the same serializer
+   for [[proletarian.job/enqueue!]].\\
+   `:context-fn` - A function that Proletarian calls to provide the first argument to the `handle-job!` multimethod.
+   It takes no arguments, and should return a map with data that provides useful \"context\" for the job being run.\\
+   `:log` - A logger function that Proletarian calls whenever anything interesting happens during operation. It takes
+   one or two arguments: The first is a keyword identifying the event being logged. The second is a map with data
+   describing the event. The default logging function is simply a println-logger that will print every event using
+   `println`.\\
+   `:queue-worker-id` - A string identifying this Queue Worker. It is used as a thread prefix for names of threads in
+   the thread pool. It is also added to the log event data under the key `:proletarian.worker/queue-worker-id`. The
+   default value is computed from the name of the queue that this worker is getting jobs from.\\
+   `:polling-interval-ms` - The time in milliseconds to wait after a job is finished before polling for a new one. The
+   default value is 100 milliseconds.\\
+   `:worker-threads` - The number of worker threads that work in parallel. The default value is 1.\\
+   `:await-termination-timeout-ms` - The time in milliseconds to wait for jobs to finish before throwing an error when
+   shutting down the thread pool. The default value is 10000 (10 seconds).\\
+   `:install-jvm-shutdown-hook?` - Should Proletarian install a JVM shutdown hook that tries to stop the Queue Worker
+   (using [[stop!]]) when the JVM is shut down? The default is `false`.\\
+   `:on-shutdown` - A function that Proletarian calls after the Queue Worker has shut down successfully. It takes no
+   arguments, and the return value is discarded. The default function is a no-op.\\
+   `:clock` - The [[java.time.Clock]] to use for getting the current time. Used in testing. The default is
+   [[java.time.Clock/systemUTC]]."
   ([data-source] (create-queue-worker data-source nil))
   ([data-source {:proletarian/keys [queue job-table archived-job-table serializer context-fn log
                                     queue-worker-id polling-interval-ms worker-threads await-termination-timeout-ms
@@ -93,7 +127,7 @@
                       worker-threads 1
                       await-termination-timeout-ms 10000
                       install-jvm-shutdown-hook? false
-                      on-shutdown #()
+                      on-shutdown (fn [])
                       clock (Clock/systemUTC)}}]
    {:pre [(instance? DataSource data-source)]}
    (let [queue-worker-id (or (some-> queue-worker-id str) (str "proletarian[" queue "]"))
@@ -139,9 +173,11 @@
              true)))))))
 
 (defn start!
+  "Start the given Queue Worker."
   [queue-worker]
   (p/start! queue-worker))
 
 (defn stop!
+  "Stop the given Queue Worker."
   [queue-worker]
   (p/stop! queue-worker))

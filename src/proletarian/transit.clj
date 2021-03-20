@@ -6,25 +6,25 @@
 
 ;; java.time.Instant
 
-(def instant-writer
+(def ^:private instant-writer
   (transit/write-handler
     (constantly "m")
     (fn [v] (-> ^Instant v .toEpochMilli))
     (fn [v] (str (-> ^Instant v .toEpochMilli)))))
 
-(def instant-reader
+(def ^:private instant-reader
   (transit/read-handler
     (fn [o]
       (let [millis (Long/parseLong o)]
         (Instant/ofEpochMilli millis)))))
 
-(def default-write-handlers
+(def ^:private default-write-handlers
   {Instant   instant-writer})
 
-(def default-read-handlers
+(def ^:private default-read-handlers
   {"m"          instant-reader})
 
-(defn encode
+(defn ^:private encode
   ([data]
    (encode data {}))
   ([data write-handlers]
@@ -33,7 +33,7 @@
      (transit/write writer data)
      (.toString out "UTF-8"))))
 
-(defn decode
+(defn ^:private decode
   ([^String s]
    (decode s {}))
   ([^String s read-handlers]
@@ -44,7 +44,9 @@
      (transit/read reader))))
 
 (defn create-serializer
-  "Create a Transit serializer that implements the [[proletarian.protocols/Serializer]] protocol.
+  "Create a Transit serializer that implements the [[proletarian.protocols/Serializer]] protocol. This is the default
+   serializer in Proletarian. It is used in [[proletarian.worker/create-queue-worker]] and
+   [[proletarian.job/enqueue!]].
 
    It includes a read and write handler for [[java.time.Instant]]. If you need other custom handlers, you should
    implement [[proletarian.protocols/Serializer]] with your own functions for encoding and decoding."
