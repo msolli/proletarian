@@ -95,12 +95,12 @@ namespace, and the enqueuing of a job in another namespace:
 Add Proletarian to your [`deps.edn`](https://clojure.org/guides/deps_and_cli)
 file:
 ```clojure
-msolli/proletarian {:mvn/version "1.0.21-alpha"}
+msolli/proletarian {:mvn/version "1.0.29-alpha"}
 ```
 
 Or to your [`project.clj`](https://github.com/technomancy/leiningen/blob/stable/sample.project.clj) for Leiningen:
 ```clojure
-[msolli/proletarian "1.0.21-alpha"]
+[msolli/proletarian "1.0.29-alpha"]
 ```
 
 Proletarian works with your existing PostgreSQL database. It uses
@@ -125,7 +125,7 @@ library like [Flyway](https://flywaydb.org/) or
 `database/tables.sql` file into a migration file. You can change the PostgreSQL
 schema and table names, but then you'll need to provide the
 `:proletarian/job-table` and `:proletarian/archived-job-table` options to
-`create-queue-worker`.
+`create-queue-worker` and `enqueue!`.
 
 ## Examples
 
@@ -135,8 +135,11 @@ example Proletarian database, and then run the examples from your terminal. All
 the details are in the example docs:
 
 - [Example A - The Basics](./doc/example-a.md)
-- [Example B - Failure and Retries](./doc/example-b.md)
-- [Example C - Job Interruption and Queue Worker Shutdown](./doc/example-c.md)
+- Example B - Failure and Retries - not documented yet, but fully functional
+  (see [examples/b/example_b](./tree/main/examples/b/example_b))
+- Example C - Job Interruption and Queue Worker Shutdown - not documented yet,
+  but fully functional (see 
+  [examples/b/example_c](./tree/main/examples/b/example_c))
 
 ## Terminology
 

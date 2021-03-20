@@ -9,5 +9,9 @@
      to complete before shutting down the thread pool."))
 
 (defprotocol Serializer
-  (encode [_ data])
-  (decode [_ data-string]))
+  "The Serializer encodes and decodes the job data payload as it is written to
+   and read from the PostgreSQL tables."
+  (encode [_ data]
+    "Encode the data as a string before writing.")
+  (decode [_ data-string]
+    "Decode the data-as-string after reading."))

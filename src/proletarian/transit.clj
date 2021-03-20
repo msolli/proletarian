@@ -1,5 +1,4 @@
 (ns proletarian.transit
-  {:no-doc true}
   (:require [cognitect.transit :as transit]
             [proletarian.protocols :as p])
   (:import (java.io ByteArrayInputStream ByteArrayOutputStream)
@@ -13,13 +12,11 @@
     (fn [v] (-> ^Instant v .toEpochMilli))
     (fn [v] (str (-> ^Instant v .toEpochMilli)))))
 
-
 (def instant-reader
   (transit/read-handler
     (fn [o]
       (let [millis (Long/parseLong o)]
         (Instant/ofEpochMilli millis)))))
-
 
 (def default-write-handlers
   {Instant   instant-writer})
@@ -47,6 +44,10 @@
      (transit/read reader))))
 
 (defn create-serializer
+  "Create a Transit serializer that implements the [[proletarian.protocols/Serializer]] protocol.
+
+   It includes a read and write handler for [[java.time.Instant]]. If you need other custom handlers, you should
+   implement [[proletarian.protocols/Serializer]] with your own functions for encoding and decoding."
   []
   (reify p/Serializer
     (encode [_ data] (encode data))
