@@ -136,10 +136,10 @@ the details are in the example docs:
 
 - [Example A - The Basics](./doc/example-a.md)
 - Example B - Failure and Retries - not documented yet, but fully functional
-  (see [examples/b/example_b](./tree/main/examples/b/example_b))
+  (source: [examples/b/example_b](./examples/b/example_b))
 - Example C - Job Interruption and Queue Worker Shutdown - not documented yet,
-  but fully functional (see 
-  [examples/b/example_c](./tree/main/examples/b/example_c))
+  but fully functional (source: 
+  [examples/c/example_c](./examples/c/example_c))
 
 ## Terminology
 
