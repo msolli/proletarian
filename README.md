@@ -293,7 +293,7 @@ run and that are safe to be run again (they are _idempotent_), then you can
 ignore interrupts.
 
 There is lots more to be said about this topic. There
-is [an article by Brian Goetz](https://www.ibm.com/developerworks/library/j-jtp05236/index.html)
+is [an article by Brian Goetz](https://web.archive.org/web/20201111190527/https://www.ibm.com/developerworks/library/j-jtp05236/index.html)
 that goes into great detail on how to implement cancelable tasks.
 
 If you have specific questions, or even advice you want to share regarding this
