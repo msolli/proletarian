@@ -50,15 +50,21 @@ namespace, and the enqueuing of a job in another namespace:
   "You'll probably want to use a component state library (Component, Integrant,
    Mount, or some such) for managing the worker state. For this example we're
    just def-ing the worker. The queue worker constructor function takes
-   a javax.sql.DataSource as its first (and only required) argument. You
-   probably already have a data-source at hand in your application already. Here
-   we'll use next.jdbc to get one from a JDBC connection URL."
+   a javax.sql.DataSource as its first argument. You probably already have a
+   data-source at hand in your application already. Here we'll use next.jdbc to
+   get one from a JDBC connection URL.
+   
+   The second argument is the job handler function. Proletarian will invoke 
+   this whenever a job is ready for processing. It's a arity-2 function, with
+   the job type (a keyword) as the first argument, and the job's payload as 
+   the second argument."
   (:require [next.jdbc :as jdbc]
-            [proletarian.worker :as worker]))
+            [proletarian.worker :as worker]
+            [your-app.handlers :as handlers]))
 
 (def email-worker
   (let [ds (jdbc/get-datasource "jdbc:postgresql://...")]
-    (worker/create-queue-worker ds)))
+    (worker/create-queue-worker ds handlers/handle-job!)))
 
 (worker/start! email-worker)
 ```
@@ -71,7 +77,7 @@ namespace, and the enqueuing of a job in another namespace:
   (:require [next.jdbc :as jdbc]
             [proletarian.job :as job]))
 
-(defn some-handler [system request]
+(defn some-route-handler [system request]
   (jdbc/with-transaction [tx (:db system)]
     ;; Do some business logic here
     ;; Write some result to the database
@@ -81,9 +87,15 @@ namespace, and the enqueuing of a job in another namespace:
     ;; Return a response
     response))
 
-;; Implement the proletarian.job/handle! multimethod for the job type.
-(defmethod job/handle! ::confirmation-email
-  [context job-type {:keys [email-address other-data-1 other-data-2]}]
+(defmulti handle-job!
+  "Since we passed this multimethod as the second argument to 
+  worker/create-queue-worker, it is called by the Proletarian poller when a job
+  is ready for execution. Implement this multimethod for your job types."
+  (fn [job-type _payload] job-type))
+
+;; Implement the handle-job! multimethod for the job type.
+(defmethod handle-job! ::confirmation-email
+  [job-type {:keys [email-address other-data-1 other-data-2]}]
   ;; Send the mail and do other time-consuming work here.
   )
 ```
@@ -158,7 +170,7 @@ options.
 You can create as many queue workers as you like, consuming jobs from different
 queues. The jobs will all live in the same table, but are differentiated by the
 queue name. The parameters you provide when setting up the queue workers, like
-the polling interval and the number of worker threads (ie. the number of
+the polling interval, and the number of worker threads (i.e. the number of
 parallel worker instances that are polling the queue and working on jobs), will
 in effect control the priority of the jobs on the different queues.
 
@@ -170,13 +182,22 @@ queue worker.
 
 ### Job Handler
 
-The _job handler_ for a job-type is the function that the Proletarian queue
-worker invokes when a job of that type is pulled off the queue.
+The _job handler_ is the function that the Proletarian queue worker invokes when
+a job is pulled off the queue. You implement this function and pass it to
+`worker/create-queue-worker` when setting up the Queue Worker.
 
-You implement the job handler by implementing the `proletarian.job/handle!`
-multimethod with the job-type as dispatch-value. The job-type is a Clojure
-keyword (optionally namespaced). You provide this as the second argument to
-`proletarian.job/enqueue!` when enqueueing a job.
+The function is invoked with two arguments:
+* `job-type` – the job type as a Clojure keyword (as provided to 
+    `job/enqueue!`).
+* `payload` - the job's payload (again, as provided to `job/enqueue!`)
+
+Your handler function must itself handle the logic of dispatching the different
+job types to appropriate handler functions (see
+[examples/c/example_c](./examples/c/example_c) for an example of this). It's 
+also useful to have system state available in this function. It should contain
+references to stateful objects and functions that you need for the job to do its
+work. Examples of this could be things like database and other (Elasticsearch,
+Redis) connections, and runtime configuration.
 
 ```clojure
 (require '[proletarian.job :as job])
@@ -184,12 +205,15 @@ keyword (optionally namespaced). You provide this as the second argument to
 (defn do-something! [db-conn foo]
   ;; Do stuff here
   ;; Enqueue a job:
-  (job/enqueue! db-conn ::the-job-type foo)
+  (job/enqueue! db-conn ::job-type-foo foo)
   )
 
-(defmethod job/handle! ::the-job-type
-  [context job-type payload]
-  ;; Do the work here.
+;; Pass this function as the second argument to
+;; proletarian.worker/create-queue-worker
+(defn handle-job!
+  [job-type payload]
+  ;; Do the dispatch of job types here. This could maybe invoke a multimethod
+  ;; that dispatches on `job-type`. See 
   ;; The value of payload is whatever was passed as third argument to 
   ;; job/enqueue! (the value of foo in do-something! in this case).
   )
@@ -232,14 +256,14 @@ HTTP call (from a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTT
 HTTP header). In most cases, however, a simple static retry strategy will
 suffice.
 
-The retry strategy is a Clojure map with the keys `:retries` and `:delays`. See
-comment in code below for explanation.
+The retry strategy is a map with the keys `:retries` and `:delays`. See comment
+in code below for explanation.
 
 ```clojure
 (require '[proletarian.job :as job])
 
-(defmethod job/handle! ::the-job-type
-  [context job-type payload]
+(defn handle-job!
+  [job-type payload]
   ;; Do stuff that might throw an exception here
   )
 

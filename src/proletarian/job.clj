@@ -5,21 +5,6 @@
            (java.time Clock Instant)
            (java.util UUID)))
 
-(defmulti handle-job!
-  "This multimethod is called by the Proletarian poller when a job is ready for execution. Implement this multimethod
-   for your job type. The return value from your handler is discarded. If it throws, it is retried according to its
-   retry strategy (see [[retry-strategy]]).
-
-   If handle-job! is missing an implementation for a job type found in the job queue, it would result in an exception.
-   Then the job would be retried according to its retry-strategy (which defaults to no retries)."
-  (fn [_context job-type _payload] job-type))
-
-(defmethod handle-job! :default
-  [_ job-type payload]
-  (throw (ex-info (format "handle-job! multimethod not implemented for job-type '%s'" job-type)
-                  {:job-type job-type
-                   :payload payload})))
-
 (defmulti retry-strategy
   "When a job throws an exception, it is caught by the Proletarian poller.
    This function is then called with the job and the caught exception. This
@@ -59,26 +44,29 @@
 ;; The default retry strategy is to not retry.
 (defmethod retry-strategy :default [_ _] nil)
 
-
 (defn enqueue!
   "Enqueue a job in the Proletarian job queue.
 
-   `conn` is a [[java.sql.Connection]] database connection.\\
-   `job-type` is a keyword that identifies the job type. You implement [[handle-job!]] and [[retry-strategy]]\\
-   (optional) for this keyword for Proletarian to be able to handle it.\\
-   `payload` is the data that the job needs. It will be encoded and decoded using the serializer (see Options).
+   ### Arguments
+   * `conn` – a [[java.sql.Connection]] database connection.
+   * `job-type` – a keyword that identifies the job type. The job type will be passed to your handler function (see
+       second argument to [[proletarian.worker/create-queue-worker]]) as the first argument. Optionally implement the
+       [[retry-strategy]] multimethod for this keyword to describe the retry strategy for this job type.
+   * `payload` – the data that the job needs. It will be encoded and decoded using the serializer (see Options, below).
+       The payload will be passed to your handler function as the second argument.
+   * `options` – an optional map describing configuration options, see below.
 
    ### Options
-   The optional fourth argument is an options map with the following keys, all optional with default values:\\
-   `:queue` - A keyword with the name of the queue. The default value is `:proletarian/default`.\\
-   `:job-table` - Which PostgreSQL table to write the job to. The default is `proletarian.job`. You should only have to
-   override this if you changed the default table name during installation.\\
-   `:serializer` - An implementation of the [[proletarian.protocols/Serializer]] protocol. The default is a Transit
-   serializer (see [[proletarian.transit/create-serializer]]). If you override this, you should use the same serializer
-   for [[proletarian.worker/create-queue-worker]].\\
-   `:uuid-fn` - A function for generating UUIDs. Used in testing. The default is [[java.util.UUID/randomUUID]].\\
-   `:clock` - The [[java.time.Clock]] to use for getting the current time. Used in testing. The default is
-   [[java.time.Clock/systemUTC]]."
+   The optional fourth argument is an options map with the following keys, all optional with default values:
+   * `:queue` – a keyword with the name of the queue. The default value is `:proletarian/default`.
+   * `:job-table` – which PostgreSQL table to write the job to. The default is `proletarian.job`. You should only have
+       to override this if you changed the default table name during installation.
+   * `:serializer` – a n implementation of the [[proletarian.protocols/Serializer]] protocol. The default is a Transit
+       serializer (see [[proletarian.transit/create-serializer]]). If you override this, you should use the same
+       serializer for [[proletarian.worker/create-queue-worker]].
+   * `:uuid-fn` – a function for generating UUIDs. Used in testing. The default is [[java.util.UUID/randomUUID]].
+   * `:clock` – the [[java.time.Clock]] to use for getting the current time. Used in testing. The default is
+       [[java.time.Clock/systemUTC]]."
   ([conn job-type payload]
    (enqueue! conn job-type payload nil))
   ([conn job-type payload {:proletarian/keys [queue job-table serializer uuid-fn clock]

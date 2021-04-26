@@ -19,7 +19,7 @@
                      :job-type ::echo
                      :payload payload}))))
 
-(defmethod job/handle-job! ::echo
-  [_context _job-type payload]
-  (println (str "Running job " ::echo ". Payload:"))
+(defn handle-job!
+  [job-type payload]
+  (println (str "Running job " job-type ". Payload:"))
   (puget/cprint payload))

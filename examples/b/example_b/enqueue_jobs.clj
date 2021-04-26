@@ -1,20 +1,7 @@
 (ns example-b.enqueue-jobs
   "In this example we're going to enqueue some jobs that will fail some of the
    time. The jobs will be retried by the workers according to their retry
-   strategy.
-
-   This example also illustrates use of the context. The first parameter to the
-   handle-job! multimethod is context. This is a map that you provide when
-   creating the worker controller, using the :proletarian/context-fn option,
-   which is then passed into the jobs when they are run. It should contain
-   references to stateful objects and functions that you need for the job to do
-   its work. Examples of this could be things like database and other
-   (Elasticsearch, Redis) connections, and runtime configuration.
-
-   Proletarian pre-populates the context with the current PostgreSQL transaction
-   object under the key :proletarian/tx. This object is a java.sql.Connection
-   object. It's useful if you want to ensure that writes to the database in the
-   job handler succeeds or fails together with the job itself."
+   strategy."
 
   (:require [examples]
             [next.jdbc :as jdbc]
@@ -41,8 +28,17 @@
         (read-line)
         (recur (inc batch-no))))))
 
-(defmethod job/handle-job! ::sometimes-failing
-  [{:keys [do-possibly-failing-thing!]} _job-type payload]
+(defn do-possibly-failing-thing!
+  "Function that sleeps between 500 and 1500 ms, and then throws an exception in about every other invocation.
+   If it throws, the exception will have data with the key :retry-after, which is the number of milliseconds after which
+   the operation could be retried. This mirrors a common backoff technique in web APIs."
+  []
+  (Thread/sleep (+ 500 (rand-int 1000)))
+  (when (zero? (rand-int 2))
+    (throw (ex-info "This operation failed for some reason." {:retry-after (rand-int 1000)}))))
+
+(defn handle-job!
+  [_job-type payload]
   (let [{:keys [batch-no counter]} payload
         log #(puget/cprint [(symbol (format "%3d/%1d" batch-no counter)) %])]
     (log (str "Running job " ::echo ". Payload:"))
