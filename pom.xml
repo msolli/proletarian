@@ -4,18 +4,18 @@
   <packaging>jar</packaging>
   <groupId>msolli</groupId>
   <artifactId>proletarian</artifactId>
-  <version>1.0.32-alpha</version>
+  <version>1.0.38-alpha</version>
   <name>proletarian</name>
   <dependencies>
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojure</artifactId>
-      <version>1.10.1</version>
+      <version>1.10.3</version>
     </dependency>
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <version>42.2.12</version>
+      <version>42.2.20</version>
     </dependency>
     <dependency>
       <groupId>com.cognitect</groupId>
@@ -29,7 +29,7 @@
   <scm>
     <connection>scm:git:git://github.com/msolli/proletarian.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/msolli/proletarian.git</developerConnection>
-    <tag>v1.0.32-alpha</tag>
+    <tag>v1.0.38-alpha</tag>
     <url>https://github.com/msolli/proletarian</url>
   </scm>
   <repositories>
