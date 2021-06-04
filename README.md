@@ -25,20 +25,16 @@ anything that takes more than a few milliseconds:
 - updating search indexes
 - batch imports and exports
 
-If you're already using PostgreSQL as your main database, there are some very
-nice advantages to having your job queue in PostgreSQL as well:
+If you're already using PostgreSQL as your main database, there is one very nice
+advantage to having your job queue in PostgreSQL as well:
 
-- Using a transaction, you can atomically commit changes to the database along
-  with the queueing of the job. A common use-case for this is sending an email
-  after some action in the web application, e.g. when a user creates an account
-  you want to send them a confirmation email. You want the creation of the
-  account, and the enqueuing of the email job to either succeed or fail
-  together. This is sometimes called the Outbox Pattern in distributed computing
-  literature.
-- Similarly, in your worker job, if you're doing some processing that involves
-  writing to the database, the changes will only be committed if the job as a
-  whole succeeds. The job will be removed from the queue in the same
-  transaction.
+Using a transaction, you can atomically commit changes to the database along
+with the queueing of the job. A common use-case for this is sending an email
+after some action in the web application, e.g., when a user creates an account
+you want to send them a confirmation email. You want the creation of the
+account, and the enqueuing of the email job to either succeed or fail
+together. This is sometimes called the Outbox Pattern in distributed computing
+literature.
 
 ## Usage
 
@@ -100,8 +96,6 @@ namespace, and the enqueuing of a job in another namespace:
   )
 ```
 
-
-
 ## Installation
 
 Add Proletarian to your [`deps.edn`](https://clojure.org/guides/deps_and_cli)
@@ -116,8 +110,8 @@ Or to your [`project.clj`](https://github.com/technomancy/leiningen/blob/stable/
 ```
 
 Proletarian works with your existing PostgreSQL database. It uses
-the `SKIP LOCKED`
-feature [that was introduced with PostgreSQL 9.5](https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5/),
+the `SKIP LOCKED` feature [that was introduced with PostgreSQL
+9.5](https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5/),
 so there's a hard requirement of at least version 9.5.
 
 Proletarian works with any Clojure database library
@@ -127,7 +121,7 @@ and does not itself depend on any such library.
 
 You'll have to create two database tables, one for queueing jobs, and one for
 keeping a record of finished jobs. These are defined in [`database/tables.sql`
-in this repository](./blob/main/database/tables.sql), along with a PostgreSQL 
+in this repository](./database/tables.sql), along with a PostgreSQL 
 [_schema_](https://www.postgresql.org/docs/current/ddl-schemas.html) to contain
 them, and an index.
 Before using the library, you must install these tables in your database. There
@@ -164,18 +158,18 @@ work on them continuously until the queue is empty. Then they will poll the
 queue at a configurable interval.
 
 There is a default queue, `:proletarian/default`, which is the one used by
-`job/enqueue!` and `worker/create-queue-worker` if no queue is specified in the
-options.
+`job/enqueue!` and `worker/create-queue-worker` if you don't specify a queue in
+the options.
 
 You can create as many queue workers as you like, consuming jobs from different
 queues. The jobs will all live in the same table, but are differentiated by the
 queue name. The parameters you provide when setting up the queue workers, like
-the polling interval, and the number of worker threads (i.e. the number of
+the polling interval, and the number of worker threads (i.e., the number of
 parallel worker instances that are polling the queue and working on jobs), will
 in effect control the priority of the jobs on the different queues.
 
 A queue worker is local to one machine only. If you have several machines acting
-as job processing instances, they will each have queue worker processes running.
+as job processing instances, they will each have a queue worker process running.
 The parallelization factor for a given queue will be the number of queue worker
 processes (on different machines) multiplied by the number of threads in each
 queue worker.
@@ -183,7 +177,7 @@ queue worker.
 ### Job Handler
 
 The _job handler_ is the function that the Proletarian queue worker invokes when
-a job is pulled off the queue. You implement this function and pass it to
+it pulls a job off the queue. You implement this function and pass it to
 `worker/create-queue-worker` when setting up the Queue Worker.
 
 The function is invoked with two arguments:
@@ -194,10 +188,10 @@ The function is invoked with two arguments:
 Your handler function must itself handle the logic of dispatching the different
 job types to appropriate handler functions (see
 [examples/c/example_c](./examples/c/example_c) for an example of this). It's 
-also useful to have system state available in this function. It should contain
-references to stateful objects and functions that you need for the job to do its
-work. Examples of this could be things like database and other (Elasticsearch,
-Redis) connections, and runtime configuration.
+also useful to have system state available in this function. It should close
+over references to stateful objects and functions that you need for the job to
+do its work. Examples of this could be things like database and other
+(Elasticsearch, Redis) connections, and runtime configuration.
 
 ```clojure
 (require '[proletarian.job :as job])
@@ -213,7 +207,7 @@ Redis) connections, and runtime configuration.
 (defn handle-job!
   [job-type payload]
   ;; Do the dispatch of job types here. This could maybe invoke a multimethod
-  ;; that dispatches on `job-type`. See 
+  ;; that dispatches on `job-type`. See Example C.
   ;; The value of payload is whatever was passed as third argument to 
   ;; job/enqueue! (the value of foo in do-something! in this case).
   )
@@ -247,14 +241,14 @@ instances of `Throwable`) will be retried according to their _retry strategy_.
 The default retry strategy is to not retry.
 
 You define a retry strategy for a job-type by implementing
-the [`proletarian.job/retry-strategy` multimethod](https://cljdoc.org/d/msolli/proletarioan/CURRENT/api/proletarian.job#retry-strategy)
+the [`proletarian.job/retry-strategy` multimethod](https://cljdoc.org/d/msolli/proletarian/CURRENT/api/proletarian.job#retry-strategy)
 with the job-type as dispatch-value. The queue worker calls this multimethod
-when an exception is caught for a job handler. The job and the exception is
+when an exception is caught for a job handler. The job and the exception are
 passed as arguments. You can use these to make informed decisions about how to
 proceed. The exception might for example contain information on when to retry an
 HTTP call (from a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
-HTTP header). In most cases, however, a simple static retry strategy will
-suffice.
+HTTP header). [Example B](./examples/b/example_b) implements something like 
+this. In most cases, however, a simple static retry strategy will suffice.
 
 The retry strategy is a map with the keys `:retries` and `:delays`. See comment
 in code below for explanation.
