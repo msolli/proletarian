@@ -8,38 +8,68 @@
   (:import (javax.sql DataSource)
            (java.time Instant Clock)))
 
+(defn process-next-job!
+  "Gets the next job from the database table and runs it.
+
+   This function is part of the internal machinery of the Proletarian worker, but is being exposed as a public function
+   for use in testing scenarios and in the REPL. No default values are provided for any of the arguments or
+   configuration options. See the documentation for, and implementation of, [[create-queue-worker]] for what those
+   default values are. It might be a good idea to create a wrapper function around this function, for use in your own
+   application, that provides sensible values for all the arguments and config.
+
+   ### Arguments
+   * `data-source` – a [[javax.sql.DataSource]] factory for creating connections to the PostgreSQL database.
+   * `queue` – a keyword with the name of the queue.
+   * `handler-fn` – the function that will be called when a job is pulled off the queue. It should be an arity-2
+       function or multimethod. The first argument is the job type (as provided to [[proletarian.job/enqueue!]]). The
+       second argument is the job's payload (again, as provided to [[proletarian.job/enqueue!]]).
+   * `log` - a logger function that Proletarian calls whenever anything interesting happens during operation. It takes
+       one or two arguments: The first is a keyword identifying the event being logged. The second is a map with data
+       describing the event.
+   * `config` – a map describing configuration options, see below.
+
+   ### Config
+   * `:proletarian.db/job-table` – which PostgreSQL table to write the job to.
+   * `:proletarian.db/archived-job-table` – which PostgreSQL table to write archived jobs to.
+   * `:proletarian.db/serializer` – an implementation of the [[proletarian.protocols/Serializer]] protocol. You should
+       use the same serializer for [[proletarian.job/enqueue!]].
+   * `:proletarian.worker/clock – a [[java.time.Clock]] instance to use for getting the current time.
+
+   Returns true if there was a job to be run, and the current thread did not receive an interrupt while handling the
+   job. Returns false if there was an interrupt.
+   Returns nil if there was no job to be run."
+  [data-source queue handler-fn log config]
+  (db/with-tx data-source
+    (fn [conn]
+      (when-let [job (db/get-next-job conn config queue)]
+        (let [{:proletarian.job/keys [job-id job-type payload attempts] :as job}
+              (update job :proletarian.job/attempts inc)
+
+              clock (::clock config)
+              log (log/wrap log {:job-id job-id :job-type job-type :attempt attempts})]
+          (try
+            (log ::handling-job)
+            (handler-fn job-type payload)
+            (log ::job-finished)
+            (db/archive-job! conn config job-id :success (Instant/now clock))
+            (db/delete-job! conn config job-id)
+            (catch InterruptedException _
+              (log ::job-interrupted)
+              (.interrupt (Thread/currentThread)))
+            (catch Exception e
+              (log ::handle-job-exception {:exception e})
+              (retry/maybe-retry! conn config job e log))))
+        (not (Thread/interrupted))))))
+
 (defn ^:private process-next-jobs!
   "Gets the next job from the database table and runs it. When the job is finished, loops back and tries to get a new
    job from the database. Returns when no jobs are available for processing."
-  [data-source queue handle-job! log stop-queue-worker! config]
+  [data-source queue handler-fn log stop-queue-worker! config]
   (try
     (let [log (log/wrap log {:worker-thread-id (::worker-thread-id config)})]
       (log ::polling-for-jobs)
       (loop []
-        (when
-          (db/with-tx data-source
-            (fn [conn]
-              (when-let [job (db/get-next-job conn config queue)]
-                (let [{:proletarian.job/keys [job-id job-type payload attempts] :as job}
-                      (update job :proletarian.job/attempts inc)
-
-                      clock (::clock config)
-                      log (log/wrap log {:job-id job-id :job-type job-type :attempt attempts})]
-                  (try
-                    (log ::handling-job)
-                    (handle-job!
-                      job-type
-                      payload)
-                    (log ::job-finished)
-                    (db/archive-job! conn config job-id :success (Instant/now clock))
-                    (db/delete-job! conn config job-id)
-                    (catch InterruptedException _
-                      (log ::job-interrupted)
-                      (.interrupt (Thread/currentThread)))
-                    (catch Exception e
-                      (log ::handle-job-exception {:exception e})
-                      (retry/maybe-retry! conn config job e log))))
-                (not (Thread/interrupted)))))
+        (when (process-next-job! data-source queue handler-fn log config)
           (recur))))
     (catch InterruptedException _
       (log ::worker-interrupted)
