@@ -18,7 +18,8 @@
    application, that provides sensible values for all the arguments and config.
 
    ### Arguments
-   * `data-source` – a [[javax.sql.DataSource]] factory for creating connections to the PostgreSQL database.
+   * `data-source` – a [javax.sql.DataSource](https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/javax/sql/DataSource.html)
+       factory for creating connections to the PostgreSQL database.
    * `queue` – a keyword with the name of the queue.
    * `handler-fn` – the function that will be called when a job is pulled off the queue. It should be an arity-2
        function or multimethod. The first argument is the job type (as provided to [[proletarian.job/enqueue!]]). The
@@ -33,7 +34,8 @@
    * `:proletarian.db/archived-job-table` – which PostgreSQL table to write archived jobs to.
    * `:proletarian.db/serializer` – an implementation of the [[proletarian.protocols/Serializer]] protocol. You should
        use the same serializer for [[proletarian.job/enqueue!]].
-   * `:proletarian.worker/clock – a [[java.time.Clock]] instance to use for getting the current time.
+   * `:proletarian.worker/clock` – a [java.time.Clock](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/Clock.html)
+       instance to use for getting the current time.
 
    Returns true if there was a job to be run, and the current thread did not receive an interrupt while handling the
    job. Returns false if there was an interrupt.
@@ -109,7 +111,8 @@
    Queue Worker must be started using [[start!]], and can be stopped using [[stop!]].
 
    ### Arguments
-   * `data-source` – a [[javax.sql.DataSource]] factory for creating connections to the PostgreSQL database.
+   * `data-source` – a [javax.sql.DataSource](https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/javax/sql/DataSource.html)
+       factory for creating connections to the PostgreSQL database.
    * `handler-fn` – the function that will be called when a job is pulled off the queue. It should be an arity-2
        function or multimethod. The first argument is the job type (as provided to [[proletarian.job/enqueue!]]). The
        second argument is the job's payload (again, as provided to [[proletarian.job/enqueue!]]).

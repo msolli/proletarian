@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.41-alpha - 2021-06-10
+### Added
+* Extracted `proletarian.worker/process-next-job!` function. This function is part of the internal machinery of the
+  Proletarian worker, but is being exposed as a public function for use in testing scenarios and in the REPL.
+
 ## 1.0.38-alpha - 2021-06-04
 ### Changed
 * `handle-job!` is now a function that must be passed as second argument to
