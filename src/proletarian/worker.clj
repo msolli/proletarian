@@ -59,8 +59,14 @@
               (log ::job-interrupted)
               (.interrupt (Thread/currentThread)))
             (catch Exception e
-              (log ::handle-job-exception {:exception e})
-              (retry/maybe-retry! conn config job e log))))
+              (if (.isInterrupted (Thread/currentThread))
+                ;; Sometimes, InterruptedException is caught lower down and re-thrown as a different exception type.
+                ;; Hopefully, the interrupted status of the thread was set. We can then bail without running the retry
+                ;; logic, so that the job can run again.
+                (log ::handle-job-exception-with-interrupt {:exception e})
+                (do
+                  (log ::handle-job-exception {:exception e})
+                  (retry/maybe-retry! conn config job e log))))))
         (not (Thread/interrupted))))))
 
 (defn ^:private process-next-jobs!
