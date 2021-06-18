@@ -25,7 +25,7 @@
   (try
     (.scheduleWithFixedDelay executor runnable 0 interval-ms TimeUnit/MILLISECONDS)
     (catch RejectedExecutionException e
-      ;; If executor is shutdown, this exception is excepted.
+      ;; If executor is shutdown, this exception is expected.
       (when-not (.isShutdown executor)
         (throw e)))))
 
