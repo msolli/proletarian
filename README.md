@@ -96,6 +96,46 @@ namespace, and the enqueuing of a job in another namespace:
   )
 ```
 
+### Logging
+
+Proletarian does not depend on a logging framework, and has no opinions on how you should log in your application.
+The `:proletarian/log` option to `create-queue-worker` specifies a function that is called by the Queue Worker when
+anything interesting and log-worthy happens during operation. It takes one or two arguments: The first is a keyword
+identifying the event being logged. The second is a map with data describing the event.
+
+If you do not specify a logging function, the default is simply a `println`-logger that will print every event using
+`println`.
+
+There is no "severity" or "level" information included with the log events. Every application will have different
+requirements here. A sensible default might be something like this (using `clojure.tools.logging`):
+```clojure
+(ns your-app.workers
+  (:require [clojure.tools.logging :as log]
+            [next.jdbc :as jdbc]
+            [proletarian.worker :as worker]
+            [your-app.handlers :as handlers]))
+
+(defn log-level
+  [x]
+  (case x
+    ::worker/worker-controller-shutdown-error :error
+    ::worker/handle-job-exception :error
+    ::worker/not-retrying :error
+    ::worker/job-worker-error :error
+    ::worker/polling-for-jobs :debug
+    :info))
+
+(defn logger
+  ([x]
+   (log/logp (log-level x) x))
+  ([x data]
+   (log/logp (log-level x) x data)))
+
+(def worker
+  (let [ds (jdbc/get-datasource "jdbc:postgresql://...")]
+    (worker/create-queue-worker ds handlers/handle-job! {:proletarian/log logger})))
+```
+
 ## Installation
 
 Add Proletarian to your [`deps.edn`](https://clojure.org/guides/deps_and_cli)
