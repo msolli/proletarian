@@ -118,11 +118,12 @@ requirements here. A sensible default might be something like this (using `cloju
 (defn log-level
   [x]
   (case x
-    ::worker/worker-controller-shutdown-error :error
+    ::worker/queue-worker-shutdown-error :error
+    ::worker/handle-job-exception-with-interrupt :error
     ::worker/handle-job-exception :error
-    ::worker/not-retrying :error
     ::worker/job-worker-error :error
     ::worker/polling-for-jobs :debug
+    :proletarian.retry/not-retrying :error
     :info))
 
 (defn logger
