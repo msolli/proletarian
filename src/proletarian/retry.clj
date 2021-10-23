@@ -1,7 +1,6 @@
 (ns proletarian.retry
   {:no-doc true}
-  (:require [proletarian.db :as db]
-            [proletarian.job :as job])
+  (:require [proletarian.db :as db])
   (:import (java.time Instant)))
 
 (defn valid-retry-strategy?
@@ -31,7 +30,7 @@
   [retry-strategy job clock]
   {:pre [(valid-retry-strategy? retry-strategy)
          (valid-job-attempts? job)]}
-  (let [attempts (::job/attempts job)
+  (let [attempts (:proletarian.job/attempts job)
         retries (:retries retry-strategy)
         delays (:delays retry-strategy)
         retries-left (if (zero? retries)
@@ -48,7 +47,8 @@
   [conn config job e log]
   (let [job-id (:proletarian.job/job-id job)
         clock (:proletarian.worker/clock config)
-        retry-spec (some-> (job/retry-strategy job e) (retry-data job clock))
+        retry-strategy-fn (::retry-strategy-fn config)
+        retry-spec (some-> (retry-strategy-fn job e) (retry-data job clock))
         finished-at (Instant/now clock)]
     (if (pos-int? (:retries-left retry-spec))
       (let [{:keys [retries-left retry-at]} retry-spec]

@@ -18,7 +18,8 @@
     (println (format "Polling interval: %d seconds. Worker threads: %d" polling-interval worker-threads))
     (let [worker (worker/create-queue-worker ds
                                              enqueue-jobs/handle-job!
-                                             #:proletarian{:polling-interval-ms (* 1000 polling-interval)
+                                             #:proletarian{:retry-strategy-fn enqueue-jobs/retry-strategy
+                                                           :polling-interval-ms (* 1000 polling-interval)
                                                            :worker-threads worker-threads
                                                            :on-shutdown (partial on-shutdown ds)
                                                            :install-jvm-shutdown-hook? true})]

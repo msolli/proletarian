@@ -41,7 +41,8 @@
    return value from your handler is discarded. If it throws, it is retried according to its retry strategy.
 
    If handle-job! is missing an implementation for a job type found in the job queue, it would result in an exception.
-   Then the job would be retried according to its retry-strategy (which defaults to no retries)."
+   Then the job would be retried according to the retry strategy given by the `:retry-strategy-fn` option (which
+   defaults to no retries)."
   (fn [job-type _payload] job-type))
 
 (defmethod handle-job! :default

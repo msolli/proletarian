@@ -85,8 +85,8 @@ namespace, and the enqueuing of a job in another namespace:
 
 (defmulti handle-job!
   "Since we passed this multimethod as the second argument to 
-  worker/create-queue-worker, it is called by the Proletarian poller when a job
-  is ready for execution. Implement this multimethod for your job types."
+  worker/create-queue-worker, it is called by the Proletarian Queue Worker when
+  a job is ready for execution. Implement this multimethod for your job types."
   (fn [job-type _payload] job-type))
 
 ;; Implement the handle-job! multimethod for the job type.
@@ -222,9 +222,9 @@ it pulls a job off the queue. You implement this function and pass it to
 `worker/create-queue-worker` when setting up the Queue Worker.
 
 The function is invoked with two arguments:
-* `job-type` – the job type as a Clojure keyword (as provided to 
-    `job/enqueue!`).
-* `payload` - the job's payload (again, as provided to `job/enqueue!`)
+* `job-type` – the job type as a Clojure keyword (as provided to
+`job/enqueue!`).
+* `payload` – the job's payload (again, as provided to `job/enqueue!`)
 
 Your handler function must itself handle the logic of dispatching the different
 job types to appropriate handler functions (see
@@ -281,18 +281,19 @@ Jobs that throw an exception (a `java.lang.Exception` or subclass, but not other
 instances of `Throwable`) will be retried according to their _retry strategy_.
 The default retry strategy is to not retry.
 
-You define a retry strategy for a job-type by implementing
-the [`proletarian.job/retry-strategy` multimethod](https://cljdoc.org/d/msolli/proletarian/CURRENT/api/proletarian.job#retry-strategy)
-with the job-type as dispatch-value. The queue worker calls this multimethod
-when an exception is caught for a job handler. The job and the exception are
-passed as arguments. You can use these to make informed decisions about how to
-proceed. The exception might for example contain information on when to retry an
-HTTP call (from a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
-HTTP header). [Example B](./examples/b/example_b) implements something like 
+To define a retry strategy for your jobs, you provide the `:retry-strategy-fn`
+option to [`proletarian.worker/create-queue-worker`](https://cljdoc.org/d/msolli/proletarian/CURRENT/api/proletarian.worker#create-queue-worker).
+This function should return the retry strategy, which is a map with the keys
+`:retries` and `:delays`. See below for an explanation.
+The Queue Worker calls this function when an exception is caught for the job
+handler. The job and the exception are passed as arguments. You can use these
+to make informed decisions about how to proceed. The exception might for
+example contain information on when to retry an HTTP call (from a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
+HTTP header). [Example B](./examples/b/example_b) implements something like
 this. In most cases, however, a simple static retry strategy will suffice.
 
-The retry strategy is a map with the keys `:retries` and `:delays`. See comment
-in code below for explanation.
+The default value for the `:retry-strategy-fn` option, which is used if you
+don't specify one, simply returns `nil`, which means no retries.
 
 ```clojure
 (require '[proletarian.job :as job])
@@ -302,7 +303,7 @@ in code below for explanation.
   ;; Do stuff that might throw an exception here
   )
 
-(defmethod job/retry-strategy ::the-job-type
+(defn my-retry-strategy
   [job throwable]
   {:retries 4
    :delays [1000 5000]}
@@ -314,6 +315,42 @@ in code below for explanation.
   ;; anymore. It is moved to the archived-job-table with a failure status.
   )
 ```
+
+#### Retry Strategy
+
+When a job throws an exception, it is caught by the Proletarian Queue Worker.
+The function given as the `:retry-strategy-fn` option is then called with the
+job payload and the caught exception. You can implement this function, and
+based on the information in the job payload and exception, have it retry any
+way you want.
+
+It should return a map that specifies the retry strategy:
+* `:retries` – the number of retries (note that the total number of attempts 
+will be one larger than this number).
+* `:delays` – a vector of numbers of milliseconds to wait between retries. The
+last number specifies the wait time for the remaining attempts if the number of
+retries is larger than the number of items in the vector. 
+
+Do consider the polling interval and the job queue contention when planning
+your retry strategy. The retry delay should be thought of as the earliest
+time that the job will be retried. The actual retry time might be a little,
+or much, later, depending on the polling interval and what other jobs are in
+the queue before this one.
+
+Examples:
+```clojure
+{:retries 2
+ :delays [1000 5000]}
+```
+This will retry two times. The first time after 1 second and the second
+after 5 seconds.
+
+```clojure
+{:retries 4
+ :delays [2000 10000]}
+```
+This will retry four times. The first time after 2 seconds, and the last
+three times after 10 seconds.
 
 ### Shutdown and Interrupts
 

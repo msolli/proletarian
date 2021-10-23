@@ -5,45 +5,6 @@
            (java.time Clock Instant)
            (java.util UUID)))
 
-(defmulti retry-strategy
-  "When a job throws an exception, it is caught by the Proletarian poller.
-   This function is then called with the job and the caught exception. This
-   multimethod dispatches on the job type. You can implement this method for
-   your job type to have it retry any way you want based on the information in
-   the job record and the caught exception.
-
-   It should return a map that specifies the retry strategy:
-
-   `:retries` The number of retries (note that the total number of attempts will
-   be one larger than this number).
-   `:delays` A vector of numbers of milliseconds to wait between retries.
-
-   Do consider the polling interval and the job queue contention when planning
-   your retry strategy. The retry delay should be thought of as the earliest
-   time that the job will be retried. The actual retry time might be a little,
-   or much, later, depending on the polling interval and what other jobs are in
-   the queue before this one.
-
-   Examples:
-   ```clojure
-   {:retries 2
-    :delays [1000 5000]}
-   ```
-   This will retry two times. The first time after 1 second and the second
-   after 5 seconds.
-
-   ```clojure
-   {:retries 4
-    :delays [2000 10000]}
-   ```
-   This will retry four times. The first time after 2 seconds, and the last
-   three times after 10 seconds."
-  (fn [job _throwable]
-    (::job-type job)))
-
-;; The default retry strategy is to not retry.
-(defmethod retry-strategy :default [_ _] nil)
-
 (defn enqueue!
   "Enqueue a job in the Proletarian job queue.
 

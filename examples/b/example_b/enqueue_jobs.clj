@@ -47,7 +47,7 @@
     (do-possibly-failing-thing!)
     (log "Phew, it didn't fail. Done.")))
 
-(defmethod job/retry-strategy ::sometimes-failing
+(defn retry-strategy
   [_job exception]
   (let [retry-after (-> exception (ex-data) :retry-after)]
     {:retries 2
