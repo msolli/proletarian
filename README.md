@@ -100,8 +100,8 @@ namespace, and the enqueuing of a job in another namespace:
 
 Proletarian does not depend on a logging framework, and has no opinions on how you should log in your application.
 The `:proletarian/log` option to `create-queue-worker` specifies a function that is called by the Queue Worker when
-anything interesting and log-worthy happens during operation. It takes one or two arguments: The first is a keyword
-identifying the event being logged. The second is a map with data describing the event.
+anything interesting and log-worthy happens during operation. It takes two arguments: The first is a keyword
+identifying the event being logged. The second is a map with data describing the event, or nil.
 
 If you do not specify a logging function, the default is simply a `println`-logger that will print every event using
 `println`.
@@ -127,10 +127,8 @@ requirements here. A sensible default might be something like this (using `cloju
     :info))
 
 (defn logger
-  ([x]
-   (log/logp (log-level x) x))
-  ([x data]
-   (log/logp (log-level x) x data)))
+  [x data]
+  (log/logp (log-level x) x data))
 
 (def worker
   (let [ds (jdbc/get-datasource "jdbc:postgresql://...")]

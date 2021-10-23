@@ -25,8 +25,8 @@
        function or multimethod. The first argument is the job type (as provided to [[proletarian.job/enqueue!]]). The
        second argument is the job's payload (again, as provided to [[proletarian.job/enqueue!]]).
    * `log` - a logger function that Proletarian calls whenever anything interesting happens during operation. It takes
-       one or two arguments: The first is a keyword identifying the event being logged. The second is a map with data
-       describing the event.
+       two arguments: The first is a keyword identifying the event being logged. The second is a map with data
+       describing the event, or nil.
    * `config` – a map describing configuration options, see below.
 
    ### Config
@@ -142,8 +142,8 @@
        is the exception that caused the job to fail. It should return a map that specifies the
        [retry strategy](/readme#retries).
    * `:proletarian/log` - a logger function that Proletarian calls whenever anything interesting happens during
-       operation. It takes one or two arguments: The first is a keyword identifying the event being logged. The second
-       is a map with data describing the event. The default logging function is simply a println-logger that will print
+       operation. It takes two arguments: The first is a keyword identifying the event being logged. The second is a map
+       with data describing the event, or nil. The default logging function is simply a println-logger that will print
        every event using `println`.
    * `:proletarian/queue-worker-id` – a string identifying this Queue Worker. It is used as a thread prefix for names of
        threads in the thread pool. It is also added to the log event data under the key

@@ -2,10 +2,10 @@
   {:no-doc true})
 
 (defn println-logger
-  ([x]
-   (println x))
-  ([x data]
-   (println x data)))
+  [x data]
+  (if (some? data)
+    (println x data)
+    (println x)))
 
 (defn wrap
   [log context]
