@@ -26,7 +26,7 @@
        second argument is the job's payload (again, as provided to [[proletarian.job/enqueue!]]).
    * `log` - a logger function that Proletarian calls whenever anything interesting happens during operation. It takes
        two arguments: The first is a keyword identifying the event being logged. The second is a map with data
-       describing the event, or nil.
+       describing the event.
    * `config` – a map describing configuration options, see below.
 
    ### Config
@@ -143,7 +143,7 @@
        [retry strategy](/readme#retries).
    * `:proletarian/log` - a logger function that Proletarian calls whenever anything interesting happens during
        operation. It takes two arguments: The first is a keyword identifying the event being logged. The second is a map
-       with data describing the event, or nil. The default logging function is simply a println-logger that will print
+       with data describing the event. The default logging function is simply a println-logger that will print
        every event using `println`.
    * `:proletarian/queue-worker-id` – a string identifying this Queue Worker. It is used as a thread prefix for names of
        threads in the thread pool. It is also added to the log event data under the key
