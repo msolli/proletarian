@@ -5,7 +5,8 @@
             [proletarian.protocols :as p]
             [proletarian.retry :as retry]
             [proletarian.transit :as transit])
-  (:import (javax.sql DataSource)
+  (:import (java.sql SQLTransientException)
+           (javax.sql DataSource)
            (java.time Instant Clock)))
 
 (defn process-next-job!
@@ -79,6 +80,8 @@
       (loop []
         (when (process-next-job! data-source queue handler-fn log config)
           (recur))))
+    (catch SQLTransientException e
+      (log ::sql-transient-exception {:throwable e}))
     (catch InterruptedException _
       (log ::worker-interrupted)
       (stop-queue-worker!))
