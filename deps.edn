@@ -1,23 +1,26 @@
 {:paths ["src"]
- :deps {org.postgresql/postgresql {:mvn/version "42.2.20"}
+ :deps {org.postgresql/postgresql {:mvn/version "42.3.1"}
         com.cognitect/transit-clj {:mvn/version "1.0.324"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps {org.clojure/clojure {:mvn/version "1.10.3"}
-                      lambdaisland/kaocha {:mvn/version "1.0.861"}
-                      metosin/jsonista {:mvn/version "0.3.3"}
-                      org.clojure/test.check {:mvn/version "1.1.0"}
-                      com.github.seancorfield/next.jdbc {:mvn/version "1.2.659"}
+                      lambdaisland/kaocha {:mvn/version "1.60.945"}
+                      metosin/jsonista {:mvn/version "0.3.4"}
+                      org.clojure/test.check {:mvn/version "1.1.1"}
+                      com.github.seancorfield/next.jdbc {:mvn/version "1.2.753"}
                       mvxcvi/puget {:mvn/version "1.3.1"}}}
-  :depstar {:replace-deps {seancorfield/depstar {:mvn/version "2.0.216"}}}
+  :depstar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}}
   :jar {:exec-fn hf.depstar/jar
         :exec-args {:sync-pom true, :verbose true}}
-  :deploy {:replace-deps {slipset/deps-deploy {:mvn/version "0.1.5"}}
+  :deploy {:replace-deps {slipset/deps-deploy {:mvn/version "0.2.0"}}
            :exec-fn deps-deploy.deps-deploy/deploy
            :exec-args {:installer :remote}}
   :examples {:extra-paths ["examples/common"]
-             :extra-deps {com.github.seancorfield/next.jdbc {:mvn/version "1.2.659"}
+             :extra-deps {com.github.seancorfield/next.jdbc {:mvn/version "1.2.753"}
                           mvxcvi/puget {:mvn/version "1.3.1"}}}
   :example-a {:extra-paths ["examples/a"]}
   :example-b {:extra-paths ["examples/b"]}
-  :example-c {:extra-paths ["examples/c"]}}}
+  :example-c {:extra-paths ["examples/c"]}
+  :outdated
+  {:extra-deps {com.github.liquidz/antq {:mvn/version "RELEASE"}}
+   :main-opts ["-m" "antq.core"]}}}
