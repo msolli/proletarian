@@ -3,7 +3,8 @@
         com.cognitect/transit-clj {:mvn/version "1.0.324"}}
  :aliases
  {:test {:extra-paths ["test"]
-         :extra-deps {lambdaisland/kaocha {:mvn/version "1.0.861"}
+         :extra-deps {org.clojure/clojure {:mvn/version "1.10.3"}
+                      lambdaisland/kaocha {:mvn/version "1.0.861"}
                       metosin/jsonista {:mvn/version "0.3.3"}
                       org.clojure/test.check {:mvn/version "1.1.0"}
                       com.github.seancorfield/next.jdbc {:mvn/version "1.2.659"}
