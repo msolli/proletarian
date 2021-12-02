@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <name>proletarian</name>
+  <description>A durable job queuing and worker system for Clojure backed by PostgreSQL.</description>
+  <url>https://github.com/msolli/proletarian</url>
+  <build>
+    <sourceDirectory>src</sourceDirectory>
+  </build>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://spdx.org/licenses/MIT.html</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <name>Martin Solli</name>
+    </developer>
+  </developers>
+</project>

@@ -16,18 +16,16 @@ examples.db.uninstall:
 
 examples.db.recreate: examples.db.uninstall examples.db.install
 
-dist/proletarian.jar: src/proletarian/* deps.edn
-	clojure -X:depstar:jar :jar dist/proletarian.jar :version '"$(VERSION)"'
+target/proletarian.jar: src/proletarian/* deps.edn
+	clojure -T:build jar
 
-jar: dist/proletarian.jar
+jar: target/proletarian.jar
 
-deploy: dist/proletarian.jar
-	git tag -a v$(VERSION) -m "Version $(VERSION)"
-	git push origin v$(VERSION)
-	clojure -X:deploy :artifact '"dist/proletarian.jar"'
+deploy: target/proletarian.jar
+	clojure -T:build deploy
 
-mvn.install: dist/proletarian.jar
-	mvn install:install-file -Dfile=dist/proletarian.jar -DpomFile=pom.xml
+mvn.install: target/proletarian.jar
+	clojure -T:build install
 
 # Run the cljdoc process for reviewing the docs on
 # localhost:8000/d/msolli/proletarian before publishing.
@@ -50,4 +48,4 @@ cljdoc.import: mvn.install CHANGELOG.md README.md doc/*
 	--rev $(shell git rev-parse HEAD)
 
 clean:
-	rm -rf dist
+	rm -rf target
