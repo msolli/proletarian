@@ -67,7 +67,7 @@
 (spec/def :proletarian.job/queue keyword?)
 (spec/def :proletarian.job/job-type keyword?)
 (spec/def :proletarian.job/payload map?)
-(spec/def :proletarian.job/attempts nat-int?)
+(spec/def :proletarian.job/attempts (spec/int-in 1 Integer/MAX_VALUE))
 (spec/def :proletarian.job/enqueued-at
   (spec/with-gen inst? gen-instant))
 (spec/def :proletarian.job/process-at
