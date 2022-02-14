@@ -20,12 +20,12 @@ fi
 
 function delete-user {
   echo "» proletarian user"
-  psql postgres -P pager=off -q -c "DROP ROLE IF EXISTS proletarian;"
+  psql postgres -P pager=off -q -v ON_ERROR_STOP=1 -c "DROP ROLE IF EXISTS proletarian;"
 }
 
 function delete-database {
   echo "» $database database"
-  psql postgres -P pager=off -q -c "DROP DATABASE IF EXISTS $database;"
+  psql postgres -P pager=off -q -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS $database;"
 }
 
 echo "Deleting database"

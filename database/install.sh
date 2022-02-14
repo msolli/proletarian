@@ -37,7 +37,7 @@ fi
 
 function create-user {
   echo "» proletarian role"
-  psql postgres -q -f $base/roles.sql
+  psql postgres -q -v ON_ERROR_STOP=1 -f $base/roles.sql
 }
 
 function create-database {
@@ -50,13 +50,13 @@ function create-tables {
   echo "» proletarian.job table"
   echo "» proletarian.archived_job table"
   echo "» proletarian.job_queue_process_at index"
-  psql $database -q -f $base/tables.sql
+  psql $database -q -v ON_ERROR_STOP=1 -f $base/tables.sql
 }
 
 function grant-privileges {
   echo "» schema privileges"
   echo "» table privileges"
-  psql $database -q -f $base/privileges.sql
+  psql $database -q -v ON_ERROR_STOP=1 -f $base/privileges.sql
 }
 
 
