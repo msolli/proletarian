@@ -9,6 +9,8 @@
            (javax.sql DataSource)
            (java.time Instant Clock)))
 
+(set! *warn-on-reflection* true)
+
 (defn process-next-job!
   "Gets the next job from the database table and runs it.
 
