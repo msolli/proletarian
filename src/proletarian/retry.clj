@@ -47,6 +47,7 @@
   [conn config job e log]
   (let [job-id (:proletarian.job/job-id job)
         clock (:proletarian.worker/clock config)
+        failed-job-fn (::failed-job-fn config)
         retry-strategy-fn (::retry-strategy-fn config)
         retry-spec (some-> (retry-strategy-fn job e) (retry-data job clock))
         finished-at (Instant/now clock)]
@@ -57,4 +58,5 @@
       (do
         (log ::not-retrying {:retry-spec retry-spec})
         (db/archive-job! conn config job-id :failure finished-at)
-        (db/delete-job! conn config job-id)))))
+        (db/delete-job! conn config job-id)
+        (failed-job-fn job e)))))

@@ -25,7 +25,7 @@
    * `handler-fn` – the function that will be called when a job is pulled off the queue. It should be an arity-2
        function or multimethod. The first argument is the job type (as provided to [[proletarian.job/enqueue!]]). The
        second argument is the job's payload (again, as provided to [[proletarian.job/enqueue!]]).
-   * `log` - a logger function that Proletarian calls whenever anything interesting happens during operation. It takes
+   * `log` – a logger function that Proletarian calls whenever anything interesting happens during operation. It takes
        two arguments: The first is a keyword identifying the event being logged. The second is a map with data
        describing the event.
    * `config` – a map describing configuration options, see below.
@@ -144,7 +144,11 @@
        `:proletarian.job/enqueued-at`, :proletarian.job/process-at` and `:proletarian.job/attempts`. The second argument
        is the exception that caused the job to fail. It should return a map that specifies the
        [retry strategy](/readme#retries).
-   * `:proletarian/log` - a logger function that Proletarian calls whenever anything interesting happens during
+   * `:proletarian/failed-job-fn` – a function that will be called when a job has failed after retries. It should be an
+       arity-2 function or multimethod. The first argument is a map with the job's attributes (see
+       `:proletarian/retry-strategy-fn`). The second argument is the exception that caused the job to fail the last
+       time.
+   * `:proletarian/log` – a logger function that Proletarian calls whenever anything interesting happens during
        operation. It takes two arguments: The first is a keyword identifying the event being logged. The second is a map
        with data describing the event. The default logging function is simply a println-logger that will print
        every event using `println`.
@@ -154,7 +158,7 @@
        is getting jobs from.
    * `:proletarian/polling-interval-ms` – the time in milliseconds to wait after a job is finished before polling for a
        new one. The default value is 100 milliseconds.
-   * `:proletarian/worker-threads` - the number of worker threads that work in parallel. The default value is 1.
+   * `:proletarian/worker-threads` – the number of worker threads that work in parallel. The default value is 1.
    * `:proletarian/await-termination-timeout-ms` – the time in milliseconds to wait for jobs to finish before throwing
        an error when shutting down the thread pool. The default value is 10000 (10 seconds).
    * `:proletarian/install-jvm-shutdown-hook?` – should Proletarian install a JVM shutdown hook that tries to stop the
@@ -164,7 +168,8 @@
    * `:proletarian/clock` – the [[java.time.Clock]] to use for getting the current time. Used in testing. The default is
        [[java.time.Clock/systemUTC]]."
   ([data-source handler-fn] (create-queue-worker data-source handler-fn nil))
-  ([data-source handler-fn {:proletarian/keys [queue job-table archived-job-table serializer retry-strategy-fn log
+  ([data-source handler-fn {:proletarian/keys [queue job-table archived-job-table serializer log
+                                               retry-strategy-fn failed-job-fn
                                                queue-worker-id
                                                polling-interval-ms worker-threads await-termination-timeout-ms
                                                install-jvm-shutdown-hook? on-shutdown
@@ -174,6 +179,7 @@
                                  archived-job-table db/DEFAULT_ARCHIVED_JOB_TABLE
                                  serializer (transit/create-serializer)
                                  retry-strategy-fn (constantly nil)
+                                 failed-job-fn (constantly nil)
                                  log log/println-logger
                                  polling-interval-ms 100
                                  worker-threads 1
@@ -190,6 +196,7 @@
                  ::db/archived-job-table archived-job-table
                  ::db/serializer serializer
                  ::retry/retry-strategy-fn retry-strategy-fn
+                 ::retry/failed-job-fn failed-job-fn
                  ::queue-worker-id queue-worker-id
                  ::worker-threads worker-threads
                  ::polling-interval-ms polling-interval-ms

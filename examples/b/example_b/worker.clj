@@ -19,6 +19,7 @@
     (let [worker (worker/create-queue-worker ds
                                              enqueue-jobs/handle-job!
                                              #:proletarian{:retry-strategy-fn enqueue-jobs/retry-strategy
+                                                           :failed-job-fn enqueue-jobs/handle-failed-job!
                                                            :polling-interval-ms (* 1000 polling-interval)
                                                            :worker-threads worker-threads
                                                            :on-shutdown (partial on-shutdown ds)

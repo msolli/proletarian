@@ -35,7 +35,7 @@
   []
   (Thread/sleep (+ 500 (rand-int 1000)))
   (when (zero? (rand-int 2))
-    (throw (ex-info "This operation failed for some reason." {:retry-after (rand-int 1000)}))))
+    (throw (ex-info "This operation failed for some reason" {:retry-after (rand-int 1000)}))))
 
 (defn handle-job!
   [_job-type payload]
@@ -52,3 +52,9 @@
   (let [retry-after (-> exception (ex-data) :retry-after)]
     {:retries 2
      :delays [retry-after]}))
+
+(defn handle-failed-job!
+  [{:proletarian.job/keys [payload attempts] :as _job} ^Exception exception]
+  (let [{:keys [batch-no counter]} payload
+        log #(puget/cprint [(symbol (format "%3d/%1d" batch-no counter)) %] {:width 120})]
+    (log (str "Job failed after " attempts " attempts (exception message: '" (.getMessage exception) "')"))))

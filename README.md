@@ -9,7 +9,7 @@ A durable job queuing and worker system for Clojure backed by PostgreSQL.
 * [Usage](#usage)
 * [Installation](#installation)
 * [Terminology](#terminology)
-* [Retries, at least once processing, and idempotence](#retries-at-least-once-processing-and-idempotence)
+* [Retries, at least once processing, and idempotence](#at-least-once-processing-idempotence-and-retries)
 * [Acknowledgements](#acknowledgements)
 * [License](#license)
 
@@ -347,8 +347,19 @@ after 5 seconds.
 {:retries 4
  :delays [2000 10000]}
 ```
-This will retry four times. The first time after 2 seconds, and the last
-three times after 10 seconds.
+This will retry four times. The first time after 2 seconds, the second after 10
+seconds, the third after another 10 seconds, and the fourth after yet another
+10 seconds.
+
+### Failed Jobs
+
+When there are no more retries for a job, it is moved to the archive table with
+the status set to `:failure`. The function given as the `:failed-job-fn` is
+then called with the job data and the caught exception.
+
+Implement this function if you want to take action when jobs fail. It could
+for example mean logging with an elevated level to make sure it is noticed by
+your monitoring, or setting some entity's state to `:failed` in your domain.
 
 ### Shutdown and Interrupts
 
