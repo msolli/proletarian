@@ -8,6 +8,11 @@
   [ds]
   (examples/summary ds))
 
+(defn on-polling-error
+  [^Throwable t]
+  (println (format "Polling error (will retry): [%s] %s" (class t) (.getMessage t)))
+  false)
+
 (defn run
   [{:keys [worker-threads polling-interval]
     :or {worker-threads 1
@@ -22,6 +27,7 @@
                                                            :failed-job-fn enqueue-jobs/handle-failed-job!
                                                            :polling-interval-ms (* 1000 polling-interval)
                                                            :worker-threads worker-threads
+                                                           :on-polling-error on-polling-error
                                                            :on-shutdown (partial on-shutdown ds)
                                                            :install-jvm-shutdown-hook? true})]
       (worker/start! worker))))

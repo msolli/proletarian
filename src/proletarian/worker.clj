@@ -89,7 +89,9 @@
       (stop-queue-worker!))
     (catch Throwable e
       (log ::job-worker-error {:throwable e})
-      (stop-queue-worker!))))
+      ;; Stop polling if error handler returns true
+      (when ((::on-polling-error config) e)
+        (stop-queue-worker!)))))
 
 (defn ^:private create-shutdown-hook
   [worker]
@@ -161,6 +163,9 @@
    * `:proletarian/polling-interval-ms` – the time in milliseconds to wait after a job is finished before polling for a
        new one. The default value is 100 milliseconds.
    * `:proletarian/worker-threads` – the number of worker threads that work in parallel. The default value is 1.
+   * `:proletarian/on-polling-error` – a function that Proletarian calls when a Throwable is thrown during polling for
+       jobs. It takes one argument, the Throwable that was thrown. If it returns a truthy value, the Queue Worker is
+       stopped. The default behavior is to stop the Queue Worker.
    * `:proletarian/await-termination-timeout-ms` – the time in milliseconds to wait for jobs to finish before throwing
        an error when shutting down the thread pool. The default value is 10000 (10 seconds).
    * `:proletarian/install-jvm-shutdown-hook?` – should Proletarian install a JVM shutdown hook that tries to stop the
@@ -173,7 +178,8 @@
   ([data-source handler-fn {:proletarian/keys [queue job-table archived-job-table serializer log
                                                retry-strategy-fn failed-job-fn
                                                queue-worker-id
-                                               polling-interval-ms worker-threads await-termination-timeout-ms
+                                               polling-interval-ms worker-threads on-polling-error
+                                               await-termination-timeout-ms
                                                install-jvm-shutdown-hook? on-shutdown
                                                clock]
                             :or {queue db/DEFAULT_QUEUE
@@ -185,6 +191,7 @@
                                  log log/println-logger
                                  polling-interval-ms 100
                                  worker-threads 1
+                                 on-polling-error (constantly true)
                                  await-termination-timeout-ms 10000
                                  install-jvm-shutdown-hook? false
                                  on-shutdown (fn [])
@@ -202,6 +209,7 @@
                  ::queue-worker-id queue-worker-id
                  ::worker-threads worker-threads
                  ::polling-interval-ms polling-interval-ms
+                 ::on-polling-error on-polling-error
                  ::await-termination-timeout-ms await-termination-timeout-ms
                  ::clock clock}]
      (reify p/QueueWorker
