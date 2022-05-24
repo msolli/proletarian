@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.68-alpha - 2022-05-23
+## 1.0.68-alpha - 2022-05-24
 
 * Add on-polling-error option (#b4b8360)
 * Add failed-job-fn option for handling failed jobs (#9d50f2a)
