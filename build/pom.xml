@@ -4,9 +4,6 @@
   <name>proletarian</name>
   <description>A durable job queuing and worker system for Clojure backed by PostgreSQL.</description>
   <url>https://github.com/msolli/proletarian</url>
-  <build>
-    <sourceDirectory>src</sourceDirectory>
-  </build>
   <licenses>
     <license>
       <name>MIT License</name>
@@ -18,4 +15,9 @@
       <name>Martin Solli</name>
     </developer>
   </developers>
+  <scm>
+    <url>https://github.com/msolli/proletarian</url>
+    <connection>scm:git:git://github.com/msolli/proletarian.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/msolli/proletarian.git</developerConnection>
+  </scm>
 </project>

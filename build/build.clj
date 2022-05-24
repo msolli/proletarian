@@ -16,7 +16,7 @@
 (defn jar
   [opts]
   (-> opts
-      (assoc :lib lib :version version :tag tag)
+      (assoc :lib lib :version version :tag tag :src-pom "build/pom.xml")
       (bb/clean)
       (bb/jar))
   (println "Current version:" version))
