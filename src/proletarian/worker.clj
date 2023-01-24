@@ -232,7 +232,7 @@
                ;; Add some jitter to the worker threads:
                ;; Sleep at least 100 ms, but no more than 1000 ms, before
                ;; scheduling the next worker thread.
-               (Thread/sleep (+ 100 (rand-int (min 900 polling-interval-ms)))))
+               (Thread/sleep ^long (+ 100 (rand-int (min 900 polling-interval-ms)))))
              true)))
        (stop! [_]
          (when @executor
