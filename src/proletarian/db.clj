@@ -1,17 +1,33 @@
 (ns proletarian.db
   {:no-doc true}
   (:require [clojure.edn :as edn]
+            [jsonista.core :as json]
             [proletarian.protocols :as p])
   (:import (java.sql Connection Timestamp)
            (java.util UUID)
            (javax.sql DataSource)
-           (java.time Instant)))
+           (java.time Instant)
+           (com.fasterxml.jackson.core JsonGenerator)))
 
 (set! *warn-on-reflection* true)
 
 (def DEFAULT_QUEUE (str :proletarian/default))
 (def DEFAULT_JOB_TABLE "proletarian.job")
 (def DEFAULT_ARCHIVED_JOB_TABLE "proletarian.archived_job")
+
+(defn string-mapper
+  [x  ^JsonGenerator gen]
+  (.writeString gen (str x)))
+
+(def object-mapper
+  (json/object-mapper
+    {:encode-key-fn name
+     :decode-key-fn keyword
+     :encoders      {java.time.LocalDate     string-mapper
+                     java.time.LocalDateTime string-mapper}}))
+(defn ->json
+  [x]
+  (json/write-value-as-string x object-mapper))
 
 (def enqueue-sql
   (memoize
@@ -63,6 +79,16 @@
                           :enqueued-at (.toInstant (.getTimestamp rs 6))
                           :process-at (.toInstant (.getTimestamp rs 7))}))))
 
+(defn ->pgobject
+  "Transforms Clojure data to a PGobject that contains the data as
+  JSON. PGObject type defaults to `jsonb` but can be changed via
+  metadata key `:pgtype`"
+  [x]
+  (let [pgtype (or (:pgtype (meta x)) "jsonb")]
+    (doto (PGobject.)
+      (.setType pgtype)
+      (.setValue (->json x)))))
+
 (def archive-job-sql
   (memoize
     (fn [archived-job-table job-table]
@@ -78,12 +104,14 @@
    {::keys [job-table archived-job-table]}
    job-id
    status
-   finished-at]
+   finished-at
+   payload]
   (with-open [stmt (.prepareStatement conn (archive-job-sql archived-job-table job-table))]
     (doto stmt
-      (.setString 1 (str status))
-      (.setTimestamp 2 (Timestamp/from ^Instant finished-at))
-      (.setObject 3 job-id)
+      (.setObject 1 (->pgobject payload))
+      (.setString 2 (str status))
+      (.setTimestamp 3 (Timestamp/from ^Instant finished-at))
+      (.setObject 4 job-id)
       (.executeUpdate))))
 
 (def delete-job-sql

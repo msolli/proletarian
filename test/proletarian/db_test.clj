@@ -178,7 +178,7 @@
             job-id (:proletarian.job/job-id job)
             now (Instant/now)]
         (db/enqueue! conn config job)
-        (db/archive-job! conn config job-id :success now)
+        (db/archive-job! conn config job-id :success now job)
         (is (= (-> job
                    (update :proletarian.job/queue str)
                    (update :proletarian.job/job-type str)
