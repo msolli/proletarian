@@ -3,11 +3,12 @@
   (:require [clojure.edn :as edn]
             [jsonista.core :as json]
             [proletarian.protocols :as p])
-  (:import (java.sql Connection Timestamp)
+  (:import (com.fasterxml.jackson.core JsonGenerator)
+           (java.sql Connection Timestamp)
+           (java.time Instant)
            (java.util UUID)
            (javax.sql DataSource)
-           (java.time Instant)
-           (com.fasterxml.jackson.core JsonGenerator)))
+           (org.postgresql.util PGobject)))
 
 (set! *warn-on-reflection* true)
 
