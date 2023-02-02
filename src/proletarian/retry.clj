@@ -57,6 +57,6 @@
         (db/retry-at! conn config (:proletarian.job/job-id job) retry-at))
       (do
         (log ::not-retrying {:retry-spec retry-spec})
-        (db/archive-job! conn config job-id :failure finished-at)
+        (db/archive-job! conn config job-id :failure finished-at job)
         (db/delete-job! conn config job-id)
         (failed-job-fn job e)))))
