@@ -95,7 +95,7 @@
     (fn [archived-job-table job-table]
       (format
         "INSERT INTO %s (job_id, queue, job_type, payload, attempts, status, enqueued_at, process_at, finished_at)
-         SELECT job_id, queue, job_type, payload, attempts + 1, ?, enqueued_at, process_at, ?
+         SELECT job_id, queue, job_type, ?, attempts + 1, ?, enqueued_at, process_at, ?
          FROM %s
          WHERE job_id = ?"
         archived-job-table job-table))))
