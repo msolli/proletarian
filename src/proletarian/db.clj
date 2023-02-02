@@ -34,7 +34,7 @@
     (fn [job-table]
       (format
         "INSERT INTO %s (job_id, queue, job_type, payload, attempts, enqueued_at, process_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
+         VALUES (?, ?, ?, ?::jsonb, ?, ?, ?)"
         job-table))))
 
 (defn enqueue!

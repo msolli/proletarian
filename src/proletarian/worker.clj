@@ -54,9 +54,9 @@
               log (log/wrap log {:job-id job-id :job-type job-type :attempt attempts})]
           (try
             (log ::handling-job)
-            (handler-fn job-type payload)
-            (log ::job-finished)
-            (db/archive-job! conn config job-id :success (Instant/now clock))
+            (let [response (handler-fn job-type payload)]
+              (log ::job-finished)
+              (db/archive-job! conn config job-id :success (Instant/now clock) (assoc payload :response response)))
             (db/delete-job! conn config job-id)
             (catch InterruptedException _
               (log ::job-interrupted)
