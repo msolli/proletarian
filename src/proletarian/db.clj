@@ -5,7 +5,8 @@
   (:import (java.sql Connection Timestamp)
            (java.util UUID)
            (javax.sql DataSource)
-           (java.time Instant)))
+           (java.time Instant ZoneId)
+           (java.time.format DateTimeFormatter)))
 
 (set! *warn-on-reflection* true)
 
@@ -50,8 +51,8 @@
       job-table))))
 
 (defn- now [clock]
-  (.format (.withZone (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd HH:mm:ss")
-                      (java.time.ZoneId/systemDefault))
+  (.format (.withZone (DateTimeFormatter/ofPattern "yyyy-MM-dd HH:mm:ss")
+                      (ZoneId/systemDefault))
            (if clock
              (Instant/now clock)
              (Instant/now))))
