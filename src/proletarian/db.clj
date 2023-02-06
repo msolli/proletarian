@@ -51,7 +51,7 @@
       job-table))))
 
 (defn- now [clock]
-  (.format (.withZone (DateTimeFormatter/ofPattern "yyyy-MM-dd HH:mm:ss")
+  (.format (.withZone (DateTimeFormatter/ofPattern "yyyy-MM-dd HH:mm:ss.SSS")
                       (ZoneId/systemDefault))
            (if clock
              (Instant/now clock)
