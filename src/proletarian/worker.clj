@@ -46,17 +46,16 @@
   [data-source queue handler-fn log config]
   (db/with-tx data-source
     (fn [conn]
-      (when-let [job (db/get-next-job conn config queue)]
+      (when-let [job (db/get-next-job conn config queue (Instant/now (::clock config)))]
         (let [{:proletarian.job/keys [job-id job-type payload attempts] :as job}
               (update job :proletarian.job/attempts inc)
 
-              clock (::clock config)
               log (log/wrap log {:job-id job-id :job-type job-type :attempt attempts})]
           (try
             (log ::handling-job)
             (handler-fn job-type payload)
             (log ::job-finished)
-            (db/archive-job! conn config job-id :success (Instant/now clock))
+            (db/archive-job! conn config job-id :success (Instant/now (::clock config)))
             (db/delete-job! conn config job-id)
             (catch InterruptedException _
               (log ::job-interrupted)

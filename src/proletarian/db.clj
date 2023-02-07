@@ -5,8 +5,7 @@
   (:import (java.sql Connection Timestamp)
            (java.util UUID)
            (javax.sql DataSource)
-           (java.time Instant ZoneId)
-           (java.time.format DateTimeFormatter)))
+           (java.time Instant)))
 
 (set! *warn-on-reflection* true)
 
@@ -39,30 +38,23 @@
 
 (def get-next-job-sql
   (memoize
-   (fn [job-table]
-     (format
-      (str "SELECT job_id, queue, job_type, payload, attempts, enqueued_at, process_at FROM %s
+    (fn [job-table]
+      (format
+        "SELECT job_id, queue, job_type, payload, attempts, enqueued_at, process_at FROM %s
          WHERE
            queue = ?
-           AND process_at <= (?)::TIMESTAMP WITHOUT TIME ZONE
+           AND process_at <= ?
          ORDER BY process_at ASC
          LIMIT 1
-         FOR UPDATE SKIP LOCKED")
-      job-table))))
-
-(defn- now [clock]
-  (.format (.withZone (DateTimeFormatter/ofPattern "yyyy-MM-dd HH:mm:ss.SSS")
-                      (ZoneId/systemDefault))
-           (if clock
-             (Instant/now clock)
-             (Instant/now))))
+         FOR UPDATE SKIP LOCKED"
+        job-table))))
 
 (defn get-next-job
-  [^Connection conn {::keys [job-table serializer]
-                     :proletarian.worker/keys [clock]} queue]
+  [^Connection conn {::keys [job-table serializer]} queue now]
   (with-open [stmt (.prepareStatement conn (get-next-job-sql job-table))]
-    (.setString stmt 1 (str queue))
-    (.setString stmt 2 (now clock))
+    (doto stmt
+      (.setString 1 (str queue))
+      (.setTimestamp 2 (Timestamp/from ^Instant now)))
     (let [rs (.executeQuery stmt)]
       (when (.next rs)
         #:proletarian.job{:job-id (.getObject rs 1 UUID)
