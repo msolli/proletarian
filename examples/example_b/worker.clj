@@ -1,12 +1,12 @@
 (ns example-b.worker
-  (:require [examples]
+  (:require [examples.common :as common]
             [example-b.enqueue-jobs :as enqueue-jobs]
             [next.jdbc :as jdbc]
             [proletarian.worker :as worker]))
 
 (defn on-shutdown
   [ds]
-  (examples/summary ds))
+  (common/summary ds))
 
 (defn on-polling-error
   [^Throwable t]
@@ -17,8 +17,8 @@
   [{:keys [worker-threads polling-interval]
     :or {worker-threads 1
          polling-interval 5}}]
-  (let [ds (jdbc/get-datasource (:jdbc-url examples/config))]
-    (examples/preamble ds)
+  (let [ds (jdbc/get-datasource (:jdbc-url common/config))]
+    (common/preamble ds)
     (println "Starting workers for :proletarian/default queue")
     (println (format "Polling interval: %d seconds. Worker threads: %d" polling-interval worker-threads))
     (let [worker (worker/create-queue-worker ds

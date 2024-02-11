@@ -1,4 +1,4 @@
-(ns examples
+(ns examples.common
   (:require [next.jdbc :as jdbc]
             [proletarian.worker :as worker]))
 

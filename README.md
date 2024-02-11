@@ -198,7 +198,7 @@ the details are in the example docs:
 
 - [Example A - The Basics](./doc/example-a.md)
 - Example B - Failure and Retries - not documented yet, but fully functional
-  (source: [examples/b/example_b](./examples/b/example_b))
+  (source: [examples/example_b](examples/example_b))
 - Example C - Job Interruption and Queue Worker Shutdown - not documented yet,
   but fully functional (source:
   [examples/c/example_c](./examples/c/example_c))
@@ -304,7 +304,7 @@ The Queue Worker calls this function when an exception is caught for the job
 handler. The job and the exception are passed as arguments. You can use these
 to make informed decisions about how to proceed. The exception might for
 example contain information on when to retry an HTTP call (from a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
-HTTP header). [Example B](./examples/b/example_b) implements something like
+HTTP header). [Example B](examples/example_b) implements something like
 this. In most cases, however, a simple static retry strategy will suffice.
 
 The default value for the `:retry-strategy-fn` option, which is used if you

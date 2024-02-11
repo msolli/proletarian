@@ -1,5 +1,5 @@
 (ns example-c.enqueue-jobs
-  (:require [examples]
+  (:require [examples.common :as common]
             [next.jdbc :as jdbc]
             [proletarian.job :as job]
             [puget.printer :as puget])
@@ -8,8 +8,8 @@
 (defn run-1
   "Enqueue a blocking job that can be interrupted."
   [_]
-  (let [ds (jdbc/get-datasource (:jdbc-url examples/config))]
-    (examples/preamble ds)
+  (let [ds (jdbc/get-datasource (:jdbc-url common/config))]
+    (common/preamble ds)
     (println "Adding new blocking job to :proletarian/default queue:")
     (let [conn (jdbc/get-connection ds)
           job-type ::blocking-job
@@ -23,8 +23,8 @@
 (defn run-2
   "Enqueue a CPU-bound job that can not be interrupted."
   [_]
-  (let [ds (jdbc/get-datasource (:jdbc-url examples/config))]
-    (examples/preamble ds)
+  (let [ds (jdbc/get-datasource (:jdbc-url common/config))]
+    (common/preamble ds)
     (println "Adding new time-consuming job to :proletarian/default queue:")
     (let [conn (jdbc/get-connection ds)
           job-type ::cpu-bound-job

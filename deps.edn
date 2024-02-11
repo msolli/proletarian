@@ -19,12 +19,10 @@
    :extra-deps {nrepl/nrepl {:mvn/version "1.1.0"}
                 com.github.gnl/playback {:mvn/version "0.5.4"}}
    :main-opts ["-m" "nrepl.cmdline"]}
-  :examples {:extra-paths ["examples/common"]
+  :examples {:extra-paths ["examples"]
              :extra-deps {com.github.seancorfield/next.jdbc {:mvn/version "1.2.780"}
                           mvxcvi/puget {:mvn/version "1.3.2"}}}
-  :example-a {:extra-paths ["examples/a"]}
-  :example-b {:extra-paths ["examples/b"]}
-  :example-c {:extra-paths ["examples/c"]}
+
   :outdated
   {:extra-deps {com.github.liquidz/antq {:mvn/version "1.6.774"}}
    :main-opts ["-m" "antq.core"]}}}

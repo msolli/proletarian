@@ -3,15 +3,15 @@
    time. The jobs will be retried by the workers according to their retry
    strategy."
 
-  (:require [examples]
+  (:require [examples.common :as common]
             [next.jdbc :as jdbc]
             [proletarian.job :as job]
             [puget.printer :as puget]))
 
 (defn run
   [_]
-  (let [ds (jdbc/get-datasource (:jdbc-url examples/config))]
-    (examples/preamble ds)
+  (let [ds (jdbc/get-datasource (:jdbc-url common/config))]
+    (common/preamble ds)
     (let [conn (jdbc/get-connection ds)
           job-type ::sometimes-failing]
       (loop [batch-no 1]

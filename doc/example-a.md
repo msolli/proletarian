@@ -84,13 +84,13 @@ export DATABASE_URL="jdbc:postgresql://localhost:55432/proletarian?user=postgres
 
 In one of your terminal windows, run this command to start the Queue Worker:
 ```
-$ clj -X:examples:example-a example-a.worker/run
+$ clj -X:examples example-a.worker/run
 ```
 
 It should start a process that polls the default queue for jobs every 5 seconds:
 
 ```
-$ clj -X:examples:example-a example-a.worker/run
+$ clj -X:examples example-a.worker/run
 Number of jobs in :proletarian/default queue: 0
 Number of jobs in proletarian.jobs table: 0
 Number of jobs in proletarian.archived_jobs table: 0
@@ -118,13 +118,13 @@ namespace.
 
 In your other terminal window, run this command to enqueue a job:
 ```
-$ clj -X:examples:example-a example-a.enqueue-jobs/run
+$ clj -X:examples example-a.enqueue-jobs/run
 ```
 
 It should add a job to the default queue and print the job details:
 
 ```
-$ clj -X:examples:example-a example-a.enqueue-jobs/run
+$ clj -X:examples example-a.enqueue-jobs/run
 Number of jobs in :proletarian/default queue: 0
 Number of jobs in proletarian.jobs table: 0
 Number of jobs in proletarian.archived_jobs table: 0

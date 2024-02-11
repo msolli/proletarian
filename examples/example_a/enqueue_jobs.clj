@@ -1,5 +1,5 @@
 (ns example-a.enqueue-jobs
-  (:require [examples]
+  (:require [examples.common :as common]
             [next.jdbc :as jdbc]
             [proletarian.job :as job]
             [puget.printer :as puget])
@@ -7,8 +7,8 @@
 
 (defn run
   [_]
-  (let [ds (jdbc/get-datasource (:jdbc-url examples/config))]
-    (examples/preamble ds)
+  (let [ds (jdbc/get-datasource (:jdbc-url common/config))]
+    (common/preamble ds)
     (println "Adding new job to :proletarian/default queue:")
     (let [conn (jdbc/get-connection ds)
           job-type ::echo
