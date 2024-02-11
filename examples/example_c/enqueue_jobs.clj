@@ -5,6 +5,8 @@
             [puget.printer :as puget])
   (:import (java.time Instant)))
 
+(set! *warn-on-reflection* true)
+
 (defn run-1
   "Enqueue a blocking job that can be interrupted."
   [_]
@@ -65,11 +67,11 @@
                    timestamp))
   (println "If you don't interrupt, then the job will finish and won't be run again.")
   (println)
-  (Thread/sleep sleep-ms)
+  (Thread/sleep ^long sleep-ms)
   (println "Done."))
 
 (defmethod handle-job! ::cpu-bound-job
-  [_job-type {:keys [run-ms timestamp] :as payload}]
+  [_job-type {:keys [run-ms _timestamp] :as payload}]
   (println (str "Running job " ::cpu-bound-job ". Payload:"))
   (puget/cprint payload)
   (println "This job is CPU-bound. We cannot interrupt/stop such a job. It will run until it

@@ -8,6 +8,8 @@
             [proletarian.job :as job]
             [puget.printer :as puget]))
 
+(set! *warn-on-reflection* true)
+
 (defn run
   [_]
   (let [ds (jdbc/get-datasource (:jdbc-url common/config))]
@@ -33,7 +35,7 @@
    If it throws, the exception will have data with the key :retry-after, which is the number of milliseconds after which
    the operation could be retried. This mirrors a common backoff technique in web APIs."
   []
-  (Thread/sleep (+ 500 (rand-int 1000)))
+  (Thread/sleep ^long (+ 500 (rand-int 1000)))
   (when (zero? (rand-int 2))
     (throw (ex-info "This operation failed for some reason" {:retry-after (rand-int 1000)}))))
 
