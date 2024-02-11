@@ -5,6 +5,9 @@ VERSION_SUFFIX := -alpha
 GIT_COMMIT_COUNT := $(shell git rev-list --count HEAD)
 VERSION := $(VERSION_PREFIX)$(GIT_COMMIT_COUNT)$(VERSION_SUFFIX)
 
+repl:
+	clj -M:dev:examples
+
 test:
 	clojure -M:test -m kaocha.runner --config-file test/tests.edn
 
