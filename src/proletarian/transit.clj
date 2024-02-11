@@ -4,6 +4,8 @@
   (:import (java.io ByteArrayInputStream ByteArrayOutputStream)
            (java.time Instant)))
 
+(set! *warn-on-reflection* true)
+
 ;; java.time.Instant
 
 (def ^:private instant-writer

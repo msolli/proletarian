@@ -3,6 +3,8 @@
   (:require [proletarian.db :as db])
   (:import (java.time Instant)))
 
+(set! *warn-on-reflection* true)
+
 (defn valid-retry-strategy?
   [{:keys [retries delays] :as rs}]
   (and

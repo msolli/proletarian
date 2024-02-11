@@ -1,7 +1,10 @@
 (ns proletarian.executor
   {:no-doc true}
   (:import
-    (java.util.concurrent Executors RejectedExecutionException ScheduledExecutorService ThreadFactory TimeUnit)))
+    (java.util.concurrent ExecutorService Executors RejectedExecutionException ScheduledExecutorService ThreadFactory
+                          TimeUnit)))
+
+(set! *warn-on-reflection* true)
 
 (defn ^ThreadFactory create-thread-factory
   [thread-name-prefix]
@@ -21,7 +24,7 @@
     (Executors/newSingleThreadScheduledExecutor thread-factory)))
 
 (defn schedule
-  [executor runnable interval-ms]
+  [^ScheduledExecutorService executor runnable interval-ms]
   (try
     (.scheduleWithFixedDelay executor runnable 0 interval-ms TimeUnit/MILLISECONDS)
     (catch RejectedExecutionException e
@@ -30,7 +33,7 @@
         (throw e)))))
 
 (defn shutdown-executor
-  [executor await-termination-timeout-ms log]
+  [^ExecutorService executor await-termination-timeout-ms log]
   (if (.isShutdown executor)
     (log ::already-shut-down)
     (try
