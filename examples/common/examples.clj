@@ -2,7 +2,8 @@
   (:require [next.jdbc :as jdbc]
             [proletarian.worker :as worker]))
 
-(def config {:jdbc-url "jdbc:postgresql://localhost/proletarian?user=proletarian&password="})
+(def config {:jdbc-url (or (System/getenv "DATABASE_URL")
+                           "jdbc:postgresql://localhost/proletarian?user=proletarian&password=proletarian")})
 
 (defn preamble
   [ds]

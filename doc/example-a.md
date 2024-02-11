@@ -54,9 +54,31 @@ Done Installing Proletarian Database
 You can uninstall the example database with `make examples.db.uninstall`, and
 re-create it with `make examples.db.recreate`.
 
-(Please note that while the database install script allows for customization of
+Please note that while the database install script allows for customization of
 the database name, the examples assume that the default (`proletarian`)
-is used.)
+is used.
+
+#### Docker
+
+You might want to exercise Proletarian with an ephemeral Postgres instance running on
+Docker. Here's how.
+
+In one terminal window:
+
+```sh
+docker run -p 55432:5432 -e POSTGRES_PASSWORD=proletarian postgres
+```
+
+In another:
+
+```
+PGHOST=localhost PGPORT=55432 PGUSER=postgres PGPASSWORD=proletarian make examples.db.install
+```
+
+In the examples, make sure the `DATABASE_URL` environment variable is set:
+```
+export DATABASE_URL="jdbc:postgresql://localhost:55432/proletarian?user=postgres&password=proletarian"
+```
 
 ### 2. Run the Queue Worker
 
