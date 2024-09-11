@@ -1,5 +1,12 @@
 # Changelog
 
+## [UNRELEASED](https://github.com/msolli/proletarian/compare/v1.0.68-alpha...)
+
+* Support MySQL 8.0.1+ and above
+* Documentation updates
+
+### Added
+
 ## [1.0.68-alpha](https://github.com/msolli/proletarian/compare/v1.0.54-alpha...v1.0.68-alpha) - 2022-05-24
 
 ### Added

@@ -4,7 +4,8 @@
             [proletarian.log :as log]
             [proletarian.protocols :as p]
             [proletarian.retry :as retry]
-            [proletarian.transit :as transit])
+            [proletarian.transit :as transit]
+            [proletarian.uuid.postgresql :as pg-uuid])
   (:import (java.sql SQLTransientException)
            (javax.sql DataSource)
            (java.time Instant Clock)))
@@ -37,6 +38,11 @@
    * `:proletarian.db/archived-job-table` – which PostgreSQL table to write archived jobs to.
    * `:proletarian.db/serializer` – an implementation of the [[proletarian.protocols/Serializer]] protocol. You should
        use the same serializer for [[proletarian.job/enqueue!]].
+   * `:proletarian/uuid-serializer` - an implementation of the `[[proletarian.protocols/UuidSerializer]] protocol.
+       Its role is to help in the serializing and deserializing of UUIDs to accomodate various database
+       requirements. It defaults to `proletarian.uuid.postgresql/create-serializer`. A `proletarian.uuid.mysql/create-serializer`
+       is available if you wish to use MySQL with this library. If you override the default, you should use the same
+       serializer for [[proletarian.job/enqueue!]].
    * `:proletarian.worker/clock` – a [java.time.Clock](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/Clock.html)
        instance to use for getting the current time.
 
@@ -112,9 +118,9 @@
   [hook]
   (try
     (.removeShutdownHook (Runtime/getRuntime) @hook)
-    (catch IllegalStateException _
+    (catch IllegalStateException _)
       ;; JVM is shutting down, ignore.
-      )
+
     (finally
       (reset! hook nil))))
 
@@ -174,7 +180,7 @@
    * `:proletarian/clock` – the [[java.time.Clock]] to use for getting the current time. Used in testing. The default is
        [[java.time.Clock/systemUTC]]."
   ([data-source handler-fn] (create-queue-worker data-source handler-fn nil))
-  ([data-source handler-fn {:proletarian/keys [queue job-table archived-job-table serializer log
+  ([data-source handler-fn {:proletarian/keys [queue job-table archived-job-table serializer uuid-serializer log
                                                retry-strategy-fn failed-job-fn
                                                queue-worker-id
                                                polling-interval-ms worker-threads on-polling-error
@@ -185,6 +191,7 @@
                                  job-table db/DEFAULT_JOB_TABLE
                                  archived-job-table db/DEFAULT_ARCHIVED_JOB_TABLE
                                  serializer (transit/create-serializer)
+                                 uuid-serializer (pg-uuid/create-serializer)
                                  retry-strategy-fn (constantly nil)
                                  failed-job-fn (constantly nil)
                                  log log/println-logger
@@ -203,6 +210,7 @@
          config {::db/job-table job-table
                  ::db/archived-job-table archived-job-table
                  ::db/serializer serializer
+                 ::db/uuid-serializer uuid-serializer
                  ::retry/retry-strategy-fn retry-strategy-fn
                  ::retry/failed-job-fn failed-job-fn
                  ::queue-worker-id queue-worker-id
