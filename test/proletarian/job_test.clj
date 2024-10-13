@@ -36,18 +36,21 @@
   (testing "calling db/enqueue"
     (let [spy (volatile! ::not-called)
           serializer (reify p/Serializer)
+          uuid-serializer (reify p/UuidSerializer)
           job-id (random-uuid)
           clock (Clock/fixed (Instant/now) (ZoneId/systemDefault))]
       (with-redefs [db/enqueue! (fn [& args] (vreset! spy args))]
         (sut/enqueue! conn-stub :foo [:the-payload]
                       :proletarian/serializer serializer
                       :proletarian/uuid-fn (constantly job-id)
+                      :proletarian/uuid-serializer uuid-serializer 
                       :proletarian/clock clock))
       (let [[conn' db-opts' job'] @spy]
         (is (= conn-stub conn')
             "passes the Connection object")
         (is (= #:proletarian.db{:job-table db/DEFAULT_JOB_TABLE
-                                :serializer serializer}
+                                :serializer serializer
+                                :uuid-serializer uuid-serializer}
                db-opts')
             "passes the database options")
         (is (= #:proletarian.job{:job-id job-id

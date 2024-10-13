@@ -3,7 +3,7 @@
 [![Download Proletarian from Clojars](https://img.shields.io/clojars/v/msolli/proletarian.svg)](https://clojars.org/msolli/proletarian)
 [![Read documentation at Cljdoc](https://cljdoc.org/badge/msolli/proletarian)](https://cljdoc.org/d/msolli/proletarian/CURRENT)
 
-A durable job queuing and worker system for Clojure backed by PostgreSQL.
+A durable job queuing and worker system for Clojure backed by PostgreSQL 9.5+/MySQL 8.0.1+
 
 * [Overview](#overview)
 * [Usage](#usage)
@@ -25,8 +25,8 @@ anything that takes more than a few milliseconds:
 - updating search indexes
 - batch imports and exports
 
-If you're already using PostgreSQL as your main database, there is one very nice
-advantage to having your job queue in PostgreSQL as well:
+If you're already using PostgreSQL/MySQL as your main database, there is one very nice
+advantage to having your job queue in PostgreSQL/MySQL as well:
 
 Using a transaction, you can atomically commit changes to the database along
 with the queueing of the job. A common use-case for this is sending an email
@@ -38,7 +38,7 @@ literature.
 
 ## Usage
 
-Here is a basic example, showing the creation of a queue worker in one 
+Here is a basic example, showing the creation of a queue worker in one
 namespace, and the enqueuing of a job in another namespace:
 
 ```clojure
@@ -49,10 +49,10 @@ namespace, and the enqueuing of a job in another namespace:
    a javax.sql.DataSource as its first argument. You probably already have a
    data-source at hand in your application already. Here we'll use next.jdbc to
    get one from a JDBC connection URL.
-   
-   The second argument is the job handler function. Proletarian will invoke 
+
+   The second argument is the job handler function. Proletarian will invoke
    this whenever a job is ready for processing. It's a arity-2 function, with
-   the job type (a keyword) as the first argument, and the job's payload as 
+   the job type (a keyword) as the first argument, and the job's payload as
    the second argument."
   (:require [next.jdbc :as jdbc]
             [proletarian.worker :as worker]
@@ -84,7 +84,7 @@ namespace, and the enqueuing of a job in another namespace:
     response))
 
 (defmulti handle-job!
-  "Since we passed this multimethod as the second argument to 
+  "Since we passed this multimethod as the second argument to
   worker/create-queue-worker, it is called by the Proletarian Queue Worker when
   a job is ready for execution. Implement this multimethod for your job types."
   (fn [job-type _payload] job-type))
@@ -148,10 +148,14 @@ Or to your [`project.clj`](https://github.com/technomancy/leiningen/blob/stable/
 [msolli/proletarian "1.0.41-alpha"]
 ```
 
-Proletarian works with your existing PostgreSQL database. It uses
+Proletarian works with your existing PostgreSQL/MySQL database. It uses
 the `SKIP LOCKED` feature [that was introduced with PostgreSQL
 9.5](https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5/),
-so there's a hard requirement of at least version 9.5.
+so there's a hard requirement of at least version 9.5. With regard to MySQL,
+the `SKIP LOCKED` feature was [added to MySQL
+8.0.1](https://dev.mysql.com/blog-archive/mysql-8-0-1-using-skip-locked-and-nowait-to-handle-hot-rows/),
+thusly you must be running MySQL 8.0.1 and above to avail of this library if
+you are using MySQL in your stack.
 
 Proletarian works with any Clojure database library
 ([next.jdbc](https://github.com/seancorfield/next-jdbc),
@@ -159,16 +163,29 @@ Proletarian works with any Clojure database library
 and does not itself depend on any such library.
 
 You'll have to create two database tables, one for queueing jobs, and one for
-keeping a record of finished jobs. These are defined in [`database/tables.sql`
-in this repository](./database/tables.sql), along with a PostgreSQL 
+keeping a record of finished jobs.
+
+For PostgreSQL:
+
+These are defined in [`database/postgresql/tables.sql`
+in this repository](./database/postgresql/tables.sql), along with a PostgreSQL
 [_schema_](https://www.postgresql.org/docs/current/ddl-schemas.html) to contain
 them, and an index.
+
+For MySQL:
+
+These are defined in [`database/mysql/tables.sql`
+in this repository](./database/mysql/tables.sql), along with a MySQL
+[_schema_] to contain them, and an index.
+
 Before using the library, you must install these tables in your database. There
 are many ways you can do this. You are probably already using a migration
 library like [Flyway](https://flywaydb.org/) or
-[Migratus](https://github.com/yogthos/migratus). Copy the contents of the
-`database/tables.sql` file into a migration file. You can change the PostgreSQL
-schema and table names, but then you'll need to provide the
+[Migratus](https://github.com/yogthos/migratus).
+
+Copy the contents of the `database/postgresql/tables.sql` or
+`database/mysql/tables.sql` file into a migration file. You can change the
+PostgreSQL/MySQL schema and table names, but then you'll need to provide the
 `:proletarian/job-table` and `:proletarian/archived-job-table` options to
 `create-queue-worker` and `enqueue!`.
 
@@ -183,7 +200,7 @@ the details are in the example docs:
 - Example B - Failure and Retries - not documented yet, but fully functional
   (source: [examples/b/example_b](./examples/b/example_b))
 - Example C - Job Interruption and Queue Worker Shutdown - not documented yet,
-  but fully functional (source: 
+  but fully functional (source:
   [examples/c/example_c](./examples/c/example_c))
 
 ## Terminology
@@ -226,7 +243,7 @@ The function is invoked with two arguments:
 
 Your handler function must itself handle the logic of dispatching the different
 job types to appropriate handler functions (see
-[examples/c/example_c](./examples/c/example_c) for an example of this). It's 
+[examples/c/example_c](./examples/c/example_c) for an example of this). It's
 also useful to have system state available in this function. It should close
 over references to stateful objects and functions that you need for the job to
 do its work. Examples of this could be things like database and other
@@ -247,7 +264,7 @@ do its work. Examples of this could be things like database and other
   [job-type payload]
   ;; Do the dispatch of job types here. This could maybe invoke a multimethod
   ;; that dispatches on `job-type`. See Example C.
-  ;; The value of payload is whatever was passed as third argument to 
+  ;; The value of payload is whatever was passed as third argument to
   ;; job/enqueue! (the value of foo in do-something! in this case).
   )
 ```
@@ -256,10 +273,10 @@ do its work. Examples of this could be things like database and other
 
 Proletarian goes to great lengths to ensure that no jobs are lost due to
 exceptions, network errors, database failure, computers catching fire or other
-facts of life. It relies on PostgreSQL transactions to protect the integrity of
-the jobs tables while polling and running jobs. A job will not be removed from
-the queue until it has finished successfully. It is moved to the archive table
-in the same transaction.
+facts of life. It relies on PostgreSQL/MySQL transactions to protect the
+integrity of the jobs tables while polling and running jobs. A job will not be
+removed from the queue until it has finished successfully. It is moved to the
+archive table in the same transaction.
 
 The guarantee is that Proletarian will run each job _at least once_. There are
 failure scenarios where a job can run and finish successfully, but the database
@@ -305,11 +322,11 @@ don't specify one, simply returns `nil`, which means no retries.
   [job throwable]
   {:retries 4
    :delays [1000 5000]}
-  ;; This retry strategy specifies that the job should be retried up to four 
-  ;; times, for a total of five attempts. The first retry should happen 
-  ;; one second after the first attempt failed. The remaining attempts should 
+  ;; This retry strategy specifies that the job should be retried up to four
+  ;; times, for a total of five attempts. The first retry should happen
+  ;; one second after the first attempt failed. The remaining attempts should
   ;; happen five seconds after the previous attempt failed.
-  ;; After four retries, if the job was still failing, it is not retried 
+  ;; After four retries, if the job was still failing, it is not retried
   ;; anymore. It is moved to the archived-job-table with a failure status.
   )
 ```
@@ -323,11 +340,11 @@ based on the information in the job payload and exception, have it retry any
 way you want.
 
 It should return a map that specifies the retry strategy:
-* `:retries` – the number of retries (note that the total number of attempts 
+* `:retries` – the number of retries (note that the total number of attempts
 will be one larger than this number).
 * `:delays` – a vector of numbers of milliseconds to wait between retries. The
 last number specifies the wait time for the remaining attempts if the number of
-retries is larger than the number of items in the vector. 
+retries is larger than the number of items in the vector.
 
 Do consider the polling interval and the job queue contention when planning
 your retry strategy. The retry delay should be thought of as the earliest

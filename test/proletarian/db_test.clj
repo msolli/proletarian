@@ -1,14 +1,15 @@
 (ns proletarian.db-test
   (:require [clojure.set :as set]
-            [clojure.test :refer :all]
             [clojure.spec.alpha :as spec]
             [clojure.spec.gen.alpha :as spec.gen]
+            [clojure.test :refer :all]
             [jsonista.core :as json]
             [next.jdbc :as jdbc]
             [proletarian.db :as db]
             [proletarian.protocols :as p]
             [proletarian.test.config :as config]
-            [proletarian.transit :as transit])
+            [proletarian.transit :as transit]
+            [proletarian.uuid.postgresql :as pg-uuid])
   (:import (java.sql Timestamp)
            (java.time LocalDateTime ZoneOffset Instant)
            (java.time.temporal ChronoUnit)
@@ -41,7 +42,8 @@
 
 (def config {::db/job-table db/DEFAULT_JOB_TABLE
              ::db/archived-job-table db/DEFAULT_ARCHIVED_JOB_TABLE
-             ::db/serializer (transit/create-serializer)})
+             ::db/serializer (transit/create-serializer)
+             ::db/uuid-serializer (pg-uuid/create-serializer)})
 
 (defn gen-instant
   []

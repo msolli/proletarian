@@ -3,7 +3,6 @@
   (:require [clojure.edn :as edn]
             [proletarian.protocols :as p])
   (:import (java.sql Connection Timestamp)
-           (java.util UUID)
            (javax.sql DataSource)
            (java.time Instant)))
 
@@ -23,11 +22,11 @@
 
 (defn enqueue!
   [^Connection conn
-   {::keys [job-table serializer]}
+   {::keys [job-table serializer uuid-serializer]}
    {:proletarian.job/keys [job-id queue job-type payload attempts enqueued-at process-at]}]
   (with-open [stmt (.prepareStatement conn (enqueue-sql job-table))]
     (doto stmt
-      (.setObject 1 job-id)
+      (.setObject 1 (p/uuid-encode uuid-serializer job-id))
       (.setString 2 (str queue))
       (.setString 3 (str job-type))
       (.setString 4 (p/encode serializer payload))
@@ -50,14 +49,14 @@
         job-table))))
 
 (defn get-next-job
-  [^Connection conn {::keys [job-table serializer]} queue now]
+  [^Connection conn {::keys [job-table serializer uuid-serializer]} queue now]
   (with-open [stmt (.prepareStatement conn (get-next-job-sql job-table))]
     (doto stmt
       (.setString 1 (str queue))
       (.setTimestamp 2 (Timestamp/from ^Instant now)))
     (let [rs (.executeQuery stmt)]
       (when (.next rs)
-        #:proletarian.job{:job-id (.getObject rs 1 UUID)
+        #:proletarian.job{:job-id (p/uuid-decode uuid-serializer (.getObject rs 1))
                           :queue (edn/read-string (.getString rs 2))
                           :job-type (edn/read-string (.getString rs 3))
                           :payload (p/decode serializer (.getString rs 4))
@@ -77,7 +76,7 @@
 
 (defn archive-job!
   [^Connection conn
-   {::keys [job-table archived-job-table]}
+   {::keys [job-table archived-job-table uuid-serializer]}
    job-id
    status
    finished-at]
@@ -85,7 +84,7 @@
     (doto stmt
       (.setString 1 (str status))
       (.setTimestamp 2 (Timestamp/from ^Instant finished-at))
-      (.setObject 3 job-id)
+      (.setObject 3 (p/uuid-encode uuid-serializer job-id))
       (.executeUpdate))))
 
 (def delete-job-sql
@@ -98,11 +97,11 @@
 
 (defn delete-job!
   [^Connection conn
-   {::keys [job-table]}
+   {::keys [job-table uuid-serializer]}
    job-id]
   (with-open [stmt (.prepareStatement conn (delete-job-sql job-table))]
     (doto stmt
-      (.setObject 1 job-id)
+      (.setObject 1 (p/uuid-encode uuid-serializer job-id))
       (.executeUpdate))))
 
 (def retry-at-sql
@@ -117,13 +116,13 @@
 
 (defn retry-at!
   [^Connection conn
-   {::keys [job-table]}
+   {::keys [job-table uuid-serializer]}
    job-id
    ^Instant retry-at]
   (with-open [stmt (.prepareStatement conn (retry-at-sql job-table))]
     (doto stmt
       (.setTimestamp 1 (Timestamp/from retry-at))
-      (.setObject 2 job-id)
+      (.setObject 2 (p/uuid-encode uuid-serializer job-id))
       (.executeUpdate))))
 
 (defn with-connection [^DataSource ds f]
