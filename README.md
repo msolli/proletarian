@@ -198,10 +198,10 @@ the details are in the example docs:
 
 - [Example A - The Basics](./doc/example-a.md)
 - Example B - Failure and Retries - not documented yet, but fully functional
-  (source: [examples/example_b](examples/example_b))
+  (source: [examples/example_b](./examples/example_b))
 - Example C - Job Interruption and Queue Worker Shutdown - not documented yet,
   but fully functional (source:
-  [examples/c/example_c](./examples/c/example_c))
+  [examples/example_c](./examples/example_c))
 
 ## Terminology
 
