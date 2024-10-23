@@ -140,12 +140,12 @@ requirements here. A sensible default might be something like this (using `cloju
 Add Proletarian to your [`deps.edn`](https://clojure.org/guides/deps_and_cli)
 file:
 ```clojure
-msolli/proletarian {:mvn/version "1.0.41-alpha"}
+msolli/proletarian {:mvn/version "1.0.86-alpha"}
 ```
 
 Or to your [`project.clj`](https://github.com/technomancy/leiningen/blob/stable/sample.project.clj) for Leiningen:
 ```clojure
-[msolli/proletarian "1.0.41-alpha"]
+[msolli/proletarian "1.0.86-alpha"]
 ```
 
 Proletarian works with your existing PostgreSQL/MySQL database. It uses
