@@ -7,8 +7,8 @@
             [proletarian.transit :as transit]
             [proletarian.uuid.postgresql :as pg-uuid])
   (:import (java.sql SQLTransientException)
-           (javax.sql DataSource)
-           (java.time Instant Clock)))
+           (java.time Clock Instant)
+           (javax.sql DataSource)))
 
 (set! *warn-on-reflection* true)
 
@@ -59,7 +59,9 @@
               log (log/wrap log {:job-id job-id :job-type job-type :attempt attempts})]
           (try
             (log ::handling-job)
-            (handler-fn job-type payload)
+            (case (::handler-fn-mode config)
+              :advanced (handler-fn job)
+              (handler-fn job-type payload))
             (log ::job-finished)
             (db/archive-job! conn config job-id :success (Instant/now (::clock config)))
             (db/delete-job! conn config job-id)
@@ -118,11 +120,19 @@
   [hook]
   (try
     (.removeShutdownHook (Runtime/getRuntime) @hook)
-    (catch IllegalStateException _)
-      ;; JVM is shutting down, ignore.
-
+    (catch IllegalStateException _)                         ; JVM is shutting down, ignore.
     (finally
       (reset! hook nil))))
+
+(defn ^:private validate-handler-fn-mode
+  [handler-fn-mode]
+  (assert (#{:default :advanced} handler-fn-mode)
+          (format "%s must be one of %s or %s (was: %s)"
+                  :proletarian/handler-fn-mode
+                  :default
+                  :advanced
+                  (pr-str handler-fn-mode)))
+  handler-fn-mode)
 
 (defn create-queue-worker
   "Create and return a Queue Worker, which is an instance of [[proletarian.protocols/QueueWorker]]. After creation, the
@@ -130,10 +140,11 @@
 
    ### Arguments
    * `data-source` – a [javax.sql.DataSource](https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/javax/sql/DataSource.html)
-       factory for creating connections to the PostgreSQL database.
-   * `handler-fn` – the function that will be called when a job is pulled off the queue. It should be an arity-2
-       function or multimethod. The first argument is the job type (as provided to [[proletarian.job/enqueue!]]). The
-       second argument is the job's payload (again, as provided to [[proletarian.job/enqueue!]]).
+      factory for creating connections to the PostgreSQL database.
+   * `handler-fn` – the function that will be called when a job is pulled off the queue. By default this should be an
+      arity-2 function or multimethod. The first argument is the job type (as provided to [[proletarian.job/enqueue!]]).
+      The second argument is the job's payload (again, as provided to [[proletarian.job/enqueue!]]). This mode of
+      calling the handler-fn can be changed with the `:proletarian/handler-fn-mode`, see below.
    * `options` – an optional map describing configuration options, see below.
 
    ### Options
@@ -147,6 +158,12 @@
    * `:proletarian/serializer` – an implementation of the [[proletarian.protocols/Serializer]] protocol. The default is
        a Transit serializer (see [[proletarian.transit/create-serializer]]). If you override this, you should use the
        same serializer for [[proletarian.job/enqueue!]].
+   * `:proletarian/handler-fn-mode` – a keyword that specifies how the `handler-fn` will be called. The default is
+       `:default`. Possible values:
+       - `:default` – Call the `handler-fn` with two arguments, the job type and the payload (see `handler-fn` above)
+       - `:advanced` - Call the `handler-fn` with one argument, a map with the job's attributes:
+           `:proletarian.job/job-type`, `:proletarian.job/payload`, `:proletarian.job/job-id`, `:proletarian.job/queue`,
+           `:proletarian.job/enqueued-at`, :proletarian.job/process-at` and `:proletarian.job/attempts`.
    * `:proletarian/retry-strategy-fn` – a function that will be called to provide the __retry strategy__ for a job if it
        fails. It should be an arity-2 function or multimethod. The first argument is a map with the job's attributes:
        `:proletarian.job/job-type`, `:proletarian.job/payload`, `:proletarian.job/job-id`, `:proletarian.job/queue`,
@@ -181,44 +198,46 @@
        [[java.time.Clock/systemUTC]]."
   ([data-source handler-fn] (create-queue-worker data-source handler-fn nil))
   ([data-source handler-fn {:proletarian/keys [queue job-table archived-job-table serializer uuid-serializer log
-                                               retry-strategy-fn failed-job-fn
+                                               handler-fn-mode retry-strategy-fn failed-job-fn
                                                queue-worker-id
                                                polling-interval-ms worker-threads on-polling-error
                                                await-termination-timeout-ms
                                                install-jvm-shutdown-hook? on-shutdown
                                                clock]
-                            :or {queue db/DEFAULT_QUEUE
-                                 job-table db/DEFAULT_JOB_TABLE
-                                 archived-job-table db/DEFAULT_ARCHIVED_JOB_TABLE
-                                 serializer (transit/create-serializer)
-                                 uuid-serializer (pg-uuid/create-serializer)
-                                 retry-strategy-fn (constantly nil)
-                                 failed-job-fn (constantly nil)
-                                 log log/println-logger
-                                 polling-interval-ms 100
-                                 worker-threads 1
-                                 on-polling-error (constantly true)
-                                 await-termination-timeout-ms 10000
-                                 install-jvm-shutdown-hook? false
-                                 on-shutdown (fn [])
-                                 clock (Clock/systemUTC)}}]
+                            :or               {queue                        db/DEFAULT_QUEUE
+                                               job-table                    db/DEFAULT_JOB_TABLE
+                                               archived-job-table           db/DEFAULT_ARCHIVED_JOB_TABLE
+                                               serializer                   (transit/create-serializer)
+                                               uuid-serializer              (pg-uuid/create-serializer)
+                                               handler-fn-mode              :default
+                                               retry-strategy-fn            (constantly nil)
+                                               failed-job-fn                (constantly nil)
+                                               log                          log/println-logger
+                                               polling-interval-ms          100
+                                               worker-threads               1
+                                               on-polling-error             (constantly true)
+                                               await-termination-timeout-ms 10000
+                                               install-jvm-shutdown-hook?   false
+                                               on-shutdown                  (fn [])
+                                               clock                        (Clock/systemUTC)}}]
    {:pre [(instance? DataSource data-source)]}
    (let [queue-worker-id (or (some-> queue-worker-id str) (str "proletarian[" queue "]"))
          log (log/wrap log {::queue-worker-id queue-worker-id})
          executor (atom nil)
          shutdown-hook (atom nil)
-         config {::db/job-table job-table
-                 ::db/archived-job-table archived-job-table
-                 ::db/serializer serializer
-                 ::db/uuid-serializer uuid-serializer
-                 ::retry/retry-strategy-fn retry-strategy-fn
-                 ::retry/failed-job-fn failed-job-fn
-                 ::queue-worker-id queue-worker-id
-                 ::worker-threads worker-threads
-                 ::polling-interval-ms polling-interval-ms
-                 ::on-polling-error on-polling-error
+         config {::db/job-table                 job-table
+                 ::db/archived-job-table        archived-job-table
+                 ::db/serializer                serializer
+                 ::db/uuid-serializer           uuid-serializer
+                 ::retry/retry-strategy-fn      retry-strategy-fn
+                 ::retry/failed-job-fn          failed-job-fn
+                 ::handler-fn-mode              (validate-handler-fn-mode handler-fn-mode)
+                 ::queue-worker-id              queue-worker-id
+                 ::worker-threads               worker-threads
+                 ::polling-interval-ms          polling-interval-ms
+                 ::on-polling-error             on-polling-error
                  ::await-termination-timeout-ms await-termination-timeout-ms
-                 ::clock clock}]
+                 ::clock                        clock}]
      (reify p/QueueWorker
        (start! [this]
          (when-not @executor
