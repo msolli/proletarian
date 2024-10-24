@@ -163,12 +163,12 @@
        - `:default` – Call the `handler-fn` with two arguments, the job type and the payload (see `handler-fn` above)
        - `:advanced` - Call the `handler-fn` with one argument, a map with the job's attributes:
            `:proletarian.job/job-type`, `:proletarian.job/payload`, `:proletarian.job/job-id`, `:proletarian.job/queue`,
-           `:proletarian.job/enqueued-at`, :proletarian.job/process-at` and `:proletarian.job/attempts`.
+           `:proletarian.job/enqueued-at`, `:proletarian.job/process-at` and `:proletarian.job/attempts`.
    * `:proletarian/retry-strategy-fn` – a function that will be called to provide the __retry strategy__ for a job if it
        fails. It should be an arity-2 function or multimethod. The first argument is a map with the job's attributes:
        `:proletarian.job/job-type`, `:proletarian.job/payload`, `:proletarian.job/job-id`, `:proletarian.job/queue`,
-       `:proletarian.job/enqueued-at`, :proletarian.job/process-at` and `:proletarian.job/attempts`. The second argument
-       is the exception that caused the job to fail. It should return a map that specifies the
+       `:proletarian.job/enqueued-at`, `:proletarian.job/process-at` and `:proletarian.job/attempts`. The second
+       argument is the exception that caused the job to fail. It should return a map that specifies the
        [retry strategy](/readme#retries).
    * `:proletarian/failed-job-fn` – a function that will be called when a job has failed after retries. It should be an
        arity-2 function or multimethod. The first argument is a map with the job's attributes (see
