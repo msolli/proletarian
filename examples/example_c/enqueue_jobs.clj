@@ -44,17 +44,20 @@
 
    If handle-job! is missing an implementation for a job type found in the job queue, it would result in an exception.
    Then the job would be retried according to the retry strategy given by the `:retry-strategy-fn` option (which
-   defaults to no retries)."
-  (fn [job-type _payload] job-type))
+   defaults to no retries).
+
+   Note that the worker in this example has been configured with `:proletarian/handler-fn-mode` set to `:advanced`.
+   This means the handler-fn (this multimethod) accepts only one argument: a map with all the job details."
+  (fn [job] (:proletarian.job/job-type job)))
 
 (defmethod handle-job! :default
-  [job-type payload]
+  [{:proletarian.job/keys [job-type payload]}]
   (throw (ex-info (format "handle-job! multimethod not implemented for job-type '%s'" job-type)
                   {:job-type job-type
                    :payload  payload})))
 
 (defmethod handle-job! ::blocking-job
-  [_job-type {:keys [sleep-ms timestamp] :as payload}]
+  [{{:keys [sleep-ms timestamp] :as payload} :proletarian.job/payload}]
   (println (str "Running job " ::blocking-job ". Payload:"))
   (puget/cprint payload)
   (println (str "Sleeping " sleep-ms "..."))
@@ -71,7 +74,7 @@
   (println "Done."))
 
 (defmethod handle-job! ::cpu-bound-job
-  [_job-type {:keys [run-ms _timestamp] :as payload}]
+  [{{:keys [run-ms _timestamp] :as payload} :proletarian.job/payload}]
   (println (str "Running job " ::cpu-bound-job ". Payload:"))
   (puget/cprint payload)
   (println "This job is CPU-bound. We cannot interrupt/stop such a job. It will run until it
