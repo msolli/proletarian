@@ -1,4 +1,5 @@
 .cpcache/
+.idea/
 .nrepl-port
 .portal/
 target/
