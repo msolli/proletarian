@@ -38,28 +38,30 @@
           serializer (reify p/Serializer)
           uuid-serializer (reify p/UuidSerializer)
           job-id (random-uuid)
-          clock (Clock/fixed (Instant/now) (ZoneId/systemDefault))]
+          zone-id (ZoneId/systemDefault)
+          clock (Clock/fixed (Instant/now) zone-id)]
       (with-redefs [db/enqueue! (fn [& args] (vreset! spy args))]
         (sut/enqueue! conn-stub :foo [:the-payload]
                       :proletarian/serializer serializer
                       :proletarian/uuid-fn (constantly job-id)
-                      :proletarian/uuid-serializer uuid-serializer 
+                      :proletarian/uuid-serializer uuid-serializer
                       :proletarian/clock clock))
       (let [[conn' db-opts' job'] @spy]
         (is (= conn-stub conn')
             "passes the Connection object")
-        (is (= #:proletarian.db{:job-table db/DEFAULT_JOB_TABLE
-                                :serializer serializer
-                                :uuid-serializer uuid-serializer}
+        (is (= #:proletarian.db{:job-table       db/DEFAULT_JOB_TABLE
+                                :serializer      serializer
+                                :uuid-serializer uuid-serializer
+                                :zone-id         zone-id}
                db-opts')
             "passes the database options")
-        (is (= #:proletarian.job{:job-id job-id
-                                 :queue db/DEFAULT_QUEUE
-                                 :job-type :foo
-                                 :payload [:the-payload]
-                                 :attempts 0
+        (is (= #:proletarian.job{:job-id      job-id
+                                 :queue       db/DEFAULT_QUEUE
+                                 :job-type    :foo
+                                 :payload     [:the-payload]
+                                 :attempts    0
                                  :enqueued-at (Instant/now clock)
-                                 :process-at (Instant/now clock)}
+                                 :process-at  (Instant/now clock)}
                job')
             "passes the job")))))
 

@@ -2,9 +2,9 @@
   {:no-doc true}
   (:require [clojure.edn :as edn]
             [proletarian.protocols :as p])
-  (:import (java.sql Connection Timestamp)
-           (javax.sql DataSource)
-           (java.time Instant)))
+  (:import (java.sql Connection)
+           (java.time Instant LocalDateTime ZoneId)
+           (javax.sql DataSource)))
 
 (set! *warn-on-reflection* true)
 
@@ -22,7 +22,7 @@
 
 (defn enqueue!
   [^Connection conn
-   {::keys [job-table serializer uuid-serializer]}
+   {::keys [job-table serializer uuid-serializer zone-id]}
    {:proletarian.job/keys [job-id queue job-type payload attempts enqueued-at process-at]}]
   (with-open [stmt (.prepareStatement conn (enqueue-sql job-table))]
     (doto stmt
@@ -31,8 +31,8 @@
       (.setString 3 (str job-type))
       (.setString 4 (p/encode serializer payload))
       (.setInt 5 attempts)
-      (.setTimestamp 6 (Timestamp/from ^Instant enqueued-at))
-      (.setTimestamp 7 (Timestamp/from ^Instant process-at))
+      (.setObject 6 (LocalDateTime/ofInstant enqueued-at zone-id))
+      (.setObject 7 (LocalDateTime/ofInstant process-at zone-id))
       (.executeUpdate))))
 
 (def get-next-job-sql
@@ -49,11 +49,11 @@
         job-table))))
 
 (defn get-next-job
-  [^Connection conn {::keys [job-table serializer uuid-serializer]} queue now]
+  [^Connection conn {::keys [job-table serializer uuid-serializer zone-id]} queue now]
   (with-open [stmt (.prepareStatement conn (get-next-job-sql job-table))]
     (doto stmt
       (.setString 1 (str queue))
-      (.setTimestamp 2 (Timestamp/from ^Instant now)))
+      (.setObject 2 (LocalDateTime/ofInstant now zone-id)))
     (let [rs (.executeQuery stmt)]
       (when (.next rs)
         #:proletarian.job{:job-id (p/uuid-decode uuid-serializer (.getObject rs 1))
@@ -61,8 +61,12 @@
                           :job-type (edn/read-string (.getString rs 3))
                           :payload (p/decode serializer (.getString rs 4))
                           :attempts (.getInt rs 5)
-                          :enqueued-at (.toInstant (.getTimestamp rs 6))
-                          :process-at (.toInstant (.getTimestamp rs 7))}))))
+                          :enqueued-at (.toInstant
+                                         (.atZone ^LocalDateTime (.getObject rs 6 LocalDateTime)
+                                                  ^ZoneId zone-id))
+                          :process-at (.toInstant
+                                        (.atZone ^LocalDateTime (.getObject rs 7 LocalDateTime)
+                                                 ^ZoneId zone-id))}))))
 
 (def archive-job-sql
   (memoize
@@ -76,14 +80,14 @@
 
 (defn archive-job!
   [^Connection conn
-   {::keys [job-table archived-job-table uuid-serializer]}
+   {::keys [job-table archived-job-table uuid-serializer zone-id]}
    job-id
    status
    finished-at]
   (with-open [stmt (.prepareStatement conn (archive-job-sql archived-job-table job-table))]
     (doto stmt
       (.setString 1 (str status))
-      (.setTimestamp 2 (Timestamp/from ^Instant finished-at))
+      (.setObject 2 (LocalDateTime/ofInstant finished-at zone-id))
       (.setObject 3 (p/uuid-encode uuid-serializer job-id))
       (.executeUpdate))))
 
@@ -116,12 +120,12 @@
 
 (defn retry-at!
   [^Connection conn
-   {::keys [job-table uuid-serializer]}
+   {::keys [job-table uuid-serializer zone-id]}
    job-id
    ^Instant retry-at]
   (with-open [stmt (.prepareStatement conn (retry-at-sql job-table))]
     (doto stmt
-      (.setTimestamp 1 (Timestamp/from retry-at))
+      (.setObject 1 (LocalDateTime/ofInstant retry-at zone-id))
       (.setObject 2 (p/uuid-encode uuid-serializer job-id))
       (.executeUpdate))))
 

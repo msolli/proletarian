@@ -4,7 +4,7 @@
             [proletarian.transit :as transit]
             [proletarian.uuid.postgresql :as pg-uuid])
   (:import (java.sql Connection)
-           (java.time Clock Duration Instant)
+           (java.time Clock Duration Instant ZoneId)
            (java.util UUID)))
 
 (set! *warn-on-reflection* true)
@@ -58,32 +58,39 @@
    * `:proletarian/uuid-fn` – a function for generating UUIDs. Used in testing. The default is
        [[java.util.UUID/randomUUID]].
    * `:proletarian/uuid-serializer` - an implementation of the `[[proletarian.protocols/UuidSerializer]] protocol.
-       Its role is to help in the serializing and deserializing of UUIDs to accomodate various database
+       Its role is to help in the serializing and deserializing of UUIDs to accommodate various database
        requirements. It defaults to `proletarian.uuid.postgresql/create-serializer`. A `proletarian.uuid.mysql/create-serializer`
        is available if you wish to use MySQL with this library. If you override the default, you should use the same
        serializer for [[proletarian.worker/create-queue-worker]].
    * `:proletarian/clock` – the [[java.time.Clock]] to use for getting the current time. Used in testing. The default is
-       [[java.time.Clock/systemUTC]]."
+       [[java.time.Clock/systemUTC]].
+   * `:proletarian/zone-id - the [[java.time.ZoneId]] time-zone to use for timestamp values in the database. Defaults to
+       the system default time-zone as returned by [[java.time.ZoneId/systemDefault]]. NOTE: This will change to UTC in
+       a future release."
   [conn job-type payload & {:keys [process-at process-in]
-                            :proletarian/keys [queue job-table serializer uuid-fn uuid-serializer clock]
+                            :proletarian/keys [queue job-table serializer uuid-fn uuid-serializer clock zone-id]
                             :or {queue db/DEFAULT_QUEUE
                                  job-table db/DEFAULT_JOB_TABLE
                                  serializer (transit/create-serializer)
                                  uuid-fn (fn [] (UUID/randomUUID))
                                  uuid-serializer (pg-uuid/create-serializer)
-                                 clock (Clock/systemUTC)}}]
+                                 clock (Clock/systemUTC)
+                                 zone-id (ZoneId/systemDefault)}}]
   {:pre [(instance? Connection conn)]}
   (let [job-id (uuid-fn)
         now (Instant/now clock)]
     (assert (instance? UUID job-id))
     (assert (satisfies? p/Serializer serializer))
     (db/enqueue! conn
-                 {::db/job-table job-table, ::db/serializer serializer ::db/uuid-serializer uuid-serializer}
-                 {::job-id job-id
-                  ::queue queue
-                  ::job-type job-type
-                  ::payload payload
-                  ::attempts 0
+                 {::db/job-table       job-table
+                  ::db/serializer      serializer
+                  ::db/uuid-serializer uuid-serializer
+                  ::db/zone-id         zone-id}
+                 {::job-id      job-id
+                  ::queue       queue
+                  ::job-type    job-type
+                  ::payload     payload
+                  ::attempts    0
                   ::enqueued-at now
-                  ::process-at (->process-at now process-at process-in)})
+                  ::process-at  (->process-at now process-at process-in)})
     job-id))

@@ -11,7 +11,7 @@
             [proletarian.transit :as transit]
             [proletarian.uuid.postgresql :as pg-uuid])
   (:import (java.sql Timestamp)
-           (java.time LocalDateTime ZoneOffset Instant)
+           (java.time Instant LocalDateTime ZoneId ZoneOffset)
            (java.time.temporal ChronoUnit)
            (org.postgresql.util PGobject)))
 
@@ -43,7 +43,8 @@
 (def config {::db/job-table db/DEFAULT_JOB_TABLE
              ::db/archived-job-table db/DEFAULT_ARCHIVED_JOB_TABLE
              ::db/serializer (transit/create-serializer)
-             ::db/uuid-serializer (pg-uuid/create-serializer)})
+             ::db/uuid-serializer (pg-uuid/create-serializer)
+             ::db/zone-id (ZoneId/systemDefault)})
 
 (defn gen-instant
   []

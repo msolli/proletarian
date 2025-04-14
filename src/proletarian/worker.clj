@@ -7,7 +7,7 @@
             [proletarian.transit :as transit]
             [proletarian.uuid.postgresql :as pg-uuid])
   (:import (java.sql SQLTransientException)
-           (java.time Clock Instant)
+           (java.time Clock Instant ZoneId)
            (javax.sql DataSource)))
 
 (set! *warn-on-reflection* true)
@@ -195,7 +195,10 @@
    * `:proletarian/on-shutdown` – a function that Proletarian calls after the Queue Worker has shut down successfully.
        It takes no arguments, and the return value is discarded. The default function is a no-op.
    * `:proletarian/clock` – the [[java.time.Clock]] to use for getting the current time. Used in testing. The default is
-       [[java.time.Clock/systemUTC]]."
+       [[java.time.Clock/systemUTC]].
+   * `:proletarian/zone-id - the [[java.time.ZoneId]] time-zone to use for timestamp values in the database. Defaults to
+       the system default time-zone as returned by [[java.time.ZoneId/systemDefault]]. NOTE: This will change to UTC in
+       a future release."
   ([data-source handler-fn] (create-queue-worker data-source handler-fn nil))
   ([data-source handler-fn {:proletarian/keys [queue job-table archived-job-table serializer uuid-serializer log
                                                handler-fn-mode retry-strategy-fn failed-job-fn
@@ -203,7 +206,7 @@
                                                polling-interval-ms worker-threads on-polling-error
                                                await-termination-timeout-ms
                                                install-jvm-shutdown-hook? on-shutdown
-                                               clock]
+                                               clock zone-id]
                             :or               {queue                        db/DEFAULT_QUEUE
                                                job-table                    db/DEFAULT_JOB_TABLE
                                                archived-job-table           db/DEFAULT_ARCHIVED_JOB_TABLE
@@ -219,7 +222,8 @@
                                                await-termination-timeout-ms 10000
                                                install-jvm-shutdown-hook?   false
                                                on-shutdown                  (fn [])
-                                               clock                        (Clock/systemUTC)}}]
+                                               clock                        (Clock/systemUTC)
+                                               zone-id                      (ZoneId/systemDefault)}}]
    {:pre [(instance? DataSource data-source)]}
    (let [queue-worker-id (or (some-> queue-worker-id str) (str "proletarian[" queue "]"))
          log (log/wrap log {::queue-worker-id queue-worker-id})
@@ -229,6 +233,7 @@
                  ::db/archived-job-table        archived-job-table
                  ::db/serializer                serializer
                  ::db/uuid-serializer           uuid-serializer
+                 ::db/zone-id                   zone-id
                  ::retry/retry-strategy-fn      retry-strategy-fn
                  ::retry/failed-job-fn          failed-job-fn
                  ::handler-fn-mode              (validate-handler-fn-mode handler-fn-mode)
