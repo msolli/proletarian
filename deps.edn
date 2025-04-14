@@ -1,5 +1,5 @@
 {:paths ["src"]
- :deps {org.postgresql/postgresql {:mvn/version "42.3.5"}
+ :deps {org.postgresql/postgresql {:mvn/version "42.7.5"}
         com.cognitect/transit-clj {:mvn/version "1.0.329"}}
  :aliases
  {:test {:extra-paths ["test"]
