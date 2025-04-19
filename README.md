@@ -243,7 +243,7 @@ The function is invoked with two arguments:
 
 Your handler function must itself handle the logic of dispatching the different
 job types to appropriate handler functions (see
-[examples/c/example_c](./examples/c/example_c) for an example of this). It's
+[examples/example_c](./examples/example_c) for an example of this). It's
 also useful to have system state available in this function. It should close
 over references to stateful objects and functions that you need for the job to
 do its work. Examples of this could be things like database and other
