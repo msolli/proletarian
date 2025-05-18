@@ -17,7 +17,7 @@
           :extra-paths ["build"]}
   :dev
   {:extra-paths ["dev/src"]
-   :extra-deps {nrepl/nrepl {:mvn/version "1.1.0"}
+   :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}
                 com.github.gnl/playback {:mvn/version "0.5.4"}
                 djblue/portal {:mvn/version "0.59.1"}}
    :main-opts ["-m" "nrepl.cmdline"]}
