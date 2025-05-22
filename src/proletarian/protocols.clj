@@ -20,8 +20,8 @@
   "The UuidSerializer encodes and decodes UUIDs (i.e., the job-id) as it is
    written to and read from database tables."
   (uuid-encode [_ job-id]
-    "Encode the job-id depending on the chosen database  implemenation.
+    "Encode the job-id depending on the chosen database implementation.
      The default is proletarian.uuid.postgresql.")
   (uuid-decode [_ job-id]
-    "Decode the job-id depending on the chosen database implemenation.))
+    "Decode the job-id depending on the chosen database implementation.))
      The default is proletarian.uuid.postgresql."))
