@@ -61,4 +61,9 @@
         (log ::not-retrying {:retry-spec retry-spec})
         (db/archive-job! conn config job-id :failure finished-at)
         (db/delete-job! conn config job-id)
-        (failed-job-fn job e)))))
+        (try
+          (failed-job-fn job e)
+          (catch Throwable e
+            (throw (ex-info (str "An error occurred when executing the " ::failed-job-fn " function")
+                            {:job job, :type ::failed-job-fn-error}
+                            e))))))))

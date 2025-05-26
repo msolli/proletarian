@@ -10,8 +10,8 @@
             [proletarian.test.config :as config]
             [proletarian.transit :as transit]
             [proletarian.uuid.postgresql :as pg-uuid])
-  (:import (java.sql Timestamp)
-           (java.time LocalDateTime ZoneOffset Instant)
+  (:import (java.sql Connection PreparedStatement Timestamp)
+           (java.time Instant LocalDateTime ZoneOffset)
            (java.time.temporal ChronoUnit)
            (org.postgresql.util PGobject)))
 
@@ -215,17 +215,38 @@
                   :count)))))))
 
 (deftest test-retry-at!
-  (with-conn
-    (fn [conn]
-      (let [job (gen-job-past)
-            job-id (:proletarian.job/job-id job)
-            attempts (:proletarian.job/attempts job)
-            now (Instant/now)]
-        (db/enqueue! conn config job)
-        (db/retry-at! conn config job-id now)
-        (is (= (assoc job :proletarian.job/process-at now
-                          :proletarian.job/attempts (inc attempts))
-               (db/get-next-job conn config (:proletarian.job/queue job) now)))))))
+  (testing "with actual Connection"
+    (with-conn
+      (fn [conn]
+        (let [job (gen-job-past)
+              job-id (:proletarian.job/job-id job)
+              attempts (:proletarian.job/attempts job)
+              now (Instant/now)]
+          (db/enqueue! conn config job)
+          (db/retry-at! conn config job-id now)
+          (is (= (assoc job :proletarian.job/process-at now
+                            :proletarian.job/attempts (inc attempts))
+                 (db/get-next-job conn config (:proletarian.job/queue job) now)))))))
+
+  (testing "with nullable Connection"
+    (let [conn (db/->null-connection)
+          job-id (random-uuid)
+          retry-at (Instant/ofEpochSecond 0)
+          res (db/retry-at! conn config job-id retry-at)
+          [stmt sql] (first @conn)]
+      (is (= res stmt)
+          "returns the PreparedStatement")
+      (is (=
+            "UPDATE proletarian.job
+         SET process_at = ?,
+             attempts = attempts + 1
+         WHERE job_id = ?"
+            sql)
+          "prepares an SQL statement")
+      (is (= {1 #inst"1970-01-01T00:00:00.000000000-00:00"  ;; java.util.Date
+              2 job-id}
+             (:data @stmt))
+          "sets the SQL params"))))
 
 (def mapper (json/object-mapper))
 (def <-json #(json/read-value % mapper))
@@ -254,3 +275,41 @@
                    (first)
                    (get-in ["Plan" "Plans" 0 "Plans" 0])
                    (select-keys ["Index Cond" "Index Name" "Node Type"]))))))))
+
+
+(deftest ->null-prepared-statement-test
+  (let [stmt (db/->null-prepared-statement)]
+    (is (instance? PreparedStatement stmt)
+        "returns a PreparedStatement")
+
+    (testing "the set<Thing> methods"
+      (.setString stmt 0 "a string")
+      (.setTimestamp stmt 1 (Timestamp. 0))
+      (.setObject stmt 2 {:an :object})
+      (is (= {0 "a string"
+              1 (Timestamp. 0)
+              2 {:an :object}}
+             (:data @stmt))
+          "updates the :data map")))
+
+  (testing "executeUpdate"
+    (is (= 0 (.executeUpdate (db/->null-prepared-statement)))
+        "returns the default :num-updates")
+    (is (= 1 (.executeUpdate (db/->null-prepared-statement {:num-updates 1})))
+        "returns the :num-updates")))
+
+(deftest ->null-connection-test
+  (is (instance? Connection (db/->null-connection))
+      "returns a Connection")
+
+  (testing "prepareStatement"
+    (let [conn (db/->null-connection)
+          res (.prepareStatement conn "some sql")]
+      (is (instance? PreparedStatement res)
+          "returns a PreparedStatement")
+      (testing "output tracking"
+        (let [next-stmt (.prepareStatement conn "some more sql")]
+          (is (= [[res "some sql"]
+                  [next-stmt "some more sql"]]
+                 @conn)
+              "returns tuples of [stmt, sql]"))))))

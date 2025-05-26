@@ -2,9 +2,10 @@
   {:no-doc true}
   (:require [clojure.edn :as edn]
             [proletarian.protocols :as p])
-  (:import (java.sql Connection Timestamp)
-           (javax.sql DataSource)
-           (java.time Instant)))
+  (:import (clojure.lang IDeref)
+           (java.sql Connection PreparedStatement Timestamp)
+           (java.time Instant)
+           (javax.sql DataSource)))
 
 (set! *warn-on-reflection* true)
 
@@ -152,3 +153,41 @@
               (try
                 (.setAutoCommit conn initial-auto-commit)
                 (catch Exception _)))))))))
+
+(defn ^PreparedStatement ->null-prepared-statement
+  "Create a nullable PreparedStatement.
+
+   The various set<Thing> methods update the :data map with the value being set, keyed by the index.
+   executeUpdate returns the value in :num-updates if present in store, or 0."
+  ([] (->null-prepared-statement {}))
+  ([init-state]
+   (let [store (-> init-state
+                   (assoc :data {})
+                   (atom))
+         set-data! (fn [i x] (swap! store assoc-in [:data i] x) nil)]
+     (reify
+       PreparedStatement
+       (setString [_ i x] (set-data! i x))
+       (setTimestamp [_ i x] (set-data! i x))
+       (setObject [_ i x] (set-data! i x))
+       (executeUpdate [_] (:num-updates @store 0))
+       (close [_])
+       IDeref
+       (deref [_] @store)))))
+
+(defn ^Connection ->null-connection
+  "Create a nullable Connection.
+
+   Output tracking: The returned Connection is also a Clojure IDeref. When dereferenced, it returns a vector of tuples
+   in the order they where created using prepareStatement. Each tuple has the PreparedStatement as the first item and a
+   string with the generated SQL in the second."
+  []
+  (let [store (atom [])]
+    (reify
+      Connection
+      (prepareStatement [_ sql]
+        (let [stmt (->null-prepared-statement)]
+          (swap! store conj [stmt sql])
+          stmt))
+      IDeref
+      (deref [_] @store))))
