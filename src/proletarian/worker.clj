@@ -36,6 +36,7 @@
    ### Config
    * `:proletarian.db/job-table` – which PostgreSQL table to write the job to.
    * `:proletarian.db/archived-job-table` – which PostgreSQL table to write archived jobs to.
+   * `:proletarian.db/archive-job!` – optional, overrides the function that archives a job.
    * `:proletarian.db/serializer` – an implementation of the [[proletarian.protocols/Serializer]] protocol. You should
        use the same serializer for [[proletarian.job/enqueue!]].
    * `:proletarian/uuid-serializer` - an implementation of the `[[proletarian.protocols/UuidSerializer]] protocol.
@@ -63,7 +64,9 @@
               :advanced (handler-fn job)
               (handler-fn job-type payload))
             (log ::job-finished)
-            (db/archive-job! conn config job-id :success (Instant/now (::clock config)))
+            (let [archive-job! (or (:proletarian.db/archive-job! config)
+                                   db/archive-job!)]
+              (archive-job! conn config job-id :success (Instant/now (::clock config))))
             (db/delete-job! conn config job-id)
             (catch InterruptedException _
               (log ::job-interrupted)
@@ -155,6 +158,7 @@
    * `:proletarian/archived-job-table` – which PostgreSQL table to write archived jobs to. The default is
        `proletarian.archived_job`. You should only have to override this if you changed the default table name during
        installation.
+   * `:proletarian.db/archive-job!` – optional, overrides the function that archives a job.
    * `:proletarian/serializer` – an implementation of the [[proletarian.protocols/Serializer]] protocol. The default is
        a Transit serializer (see [[proletarian.transit/create-serializer]]). If you override this, you should use the
        same serializer for [[proletarian.job/enqueue!]].
@@ -197,7 +201,7 @@
    * `:proletarian/clock` – the [[java.time.Clock]] to use for getting the current time. Used in testing. The default is
        [[java.time.Clock/systemUTC]]."
   ([data-source handler-fn] (create-queue-worker data-source handler-fn nil))
-  ([data-source handler-fn {:proletarian/keys [queue job-table archived-job-table serializer uuid-serializer log
+  ([data-source handler-fn {:proletarian/keys [queue job-table archived-job-table archive-job! serializer uuid-serializer log
                                                handler-fn-mode retry-strategy-fn failed-job-fn
                                                queue-worker-id
                                                polling-interval-ms worker-threads on-polling-error
@@ -227,6 +231,7 @@
          shutdown-hook (atom nil)
          config {::db/job-table                 job-table
                  ::db/archived-job-table        archived-job-table
+                 ::db/archive-job!              archive-job!
                  ::db/serializer                serializer
                  ::db/uuid-serializer           uuid-serializer
                  ::retry/retry-strategy-fn      retry-strategy-fn
