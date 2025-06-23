@@ -63,8 +63,10 @@
        is available if you wish to use MySQL with this library. If you override the default, you should use the same
        serializer for [[proletarian.worker/create-queue-worker]].
    * `:proletarian/clock` – the [[java.time.Clock]] to use for getting the current time. Used in testing. The default is
-       [[java.time.Clock/systemUTC]]."
+       [[java.time.Clock/systemUTC]].
+   * `:proletarian.db/enqueue-job!` – optional, overrides the function that enqueues the job into the jobs table."
   [conn job-type payload & {:keys [process-at process-in]
+                            :as config
                             :proletarian/keys [queue job-table serializer uuid-fn uuid-serializer clock]
                             :or {queue db/DEFAULT_QUEUE
                                  job-table db/DEFAULT_JOB_TABLE
@@ -74,16 +76,18 @@
                                  clock (Clock/systemUTC)}}]
   {:pre [(instance? Connection conn)]}
   (let [job-id (uuid-fn)
-        now (Instant/now clock)]
+        now (Instant/now clock)
+        enqueue-job! (or (:proletarian.db/enqueue-job! config)
+                         db/enqueue!)]
     (assert (instance? UUID job-id))
     (assert (satisfies? p/Serializer serializer))
-    (db/enqueue! conn
-                 {::db/job-table job-table, ::db/serializer serializer ::db/uuid-serializer uuid-serializer}
-                 {::job-id job-id
-                  ::queue queue
-                  ::job-type job-type
-                  ::payload payload
-                  ::attempts 0
-                  ::enqueued-at now
-                  ::process-at (->process-at now process-at process-in)})
+    (enqueue-job! conn
+                  {::db/job-table job-table, ::db/serializer serializer ::db/uuid-serializer uuid-serializer}
+                  {::job-id job-id
+                   ::queue queue
+                   ::job-type job-type
+                   ::payload payload
+                   ::attempts 0
+                   ::enqueued-at now
+                   ::process-at (->process-at now process-at process-in)})
     job-id))
