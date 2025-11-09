@@ -27,7 +27,7 @@
    :retries-left is the number of retries left
    :retry-at is the time at which the next retry should be attempted
 
-   This function is defined for valid retry strategies, and for jobs with
+   This function is defined for valid retry strategies and for jobs with
    attempts greater than zero."
   [retry-strategy job clock]
   {:pre [(valid-retry-strategy? retry-strategy)

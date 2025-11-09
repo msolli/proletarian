@@ -12,10 +12,10 @@ test:
 	clojure -M:test -m kaocha.runner --config-file test/tests.edn
 
 examples.db.install:
-	DATABASE_NAME=proletarian ./database/install.sh
+	DATABASE_NAME=proletarian ./database/postgresql/install.sh
 
 examples.db.uninstall:
-	DATABASE_NAME=proletarian ./database/uninstall.sh
+	DATABASE_NAME=proletarian ./database/postgresql/uninstall.sh
 
 examples.db.recreate: examples.db.uninstall examples.db.install
 

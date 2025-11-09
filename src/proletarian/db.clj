@@ -5,9 +5,17 @@
   (:import (clojure.lang IDeref)
            (java.sql Connection PreparedStatement Timestamp)
            (java.time Instant)
+           (java.util Calendar TimeZone)
            (javax.sql DataSource)))
 
 (set! *warn-on-reflection* true)
+
+(def ^Calendar UTC-CALENDAR
+  "Calendar instance set to UTC timezone for JDBC timestamp operations.
+   Using an explicit Calendar ensures timestamps are interpreted as UTC
+   regardless of the JVM's default timezone."
+  (doto (Calendar/getInstance)
+    (.setTimeZone (TimeZone/getTimeZone "UTC"))))
 
 (def DEFAULT_QUEUE (str :proletarian/default))
 (def DEFAULT_JOB_TABLE "proletarian.job")
@@ -32,8 +40,8 @@
       (.setString 3 (str job-type))
       (.setString 4 (p/encode serializer payload))
       (.setInt 5 attempts)
-      (.setTimestamp 6 (Timestamp/from ^Instant enqueued-at))
-      (.setTimestamp 7 (Timestamp/from ^Instant process-at))
+      (.setTimestamp 6 (Timestamp/from ^Instant enqueued-at) UTC-CALENDAR)
+      (.setTimestamp 7 (Timestamp/from ^Instant process-at) UTC-CALENDAR)
       (.executeUpdate))))
 
 (def get-next-job-sql
@@ -54,7 +62,7 @@
   (with-open [stmt (.prepareStatement conn (get-next-job-sql job-table))]
     (doto stmt
       (.setString 1 (str queue))
-      (.setTimestamp 2 (Timestamp/from ^Instant now)))
+      (.setTimestamp 2 (Timestamp/from ^Instant now) UTC-CALENDAR))
     (let [rs (.executeQuery stmt)]
       (when (.next rs)
         #:proletarian.job{:job-id (p/uuid-decode uuid-serializer (.getObject rs 1))
@@ -62,8 +70,8 @@
                           :job-type (edn/read-string (.getString rs 3))
                           :payload (p/decode serializer (.getString rs 4))
                           :attempts (.getInt rs 5)
-                          :enqueued-at (.toInstant (.getTimestamp rs 6))
-                          :process-at (.toInstant (.getTimestamp rs 7))}))))
+                          :enqueued-at (.toInstant (.getTimestamp rs 6 UTC-CALENDAR))
+                          :process-at (.toInstant (.getTimestamp rs 7 UTC-CALENDAR))}))))
 
 (def archive-job-sql
   (memoize
@@ -84,7 +92,7 @@
   (with-open [stmt (.prepareStatement conn (archive-job-sql archived-job-table job-table))]
     (doto stmt
       (.setString 1 (str status))
-      (.setTimestamp 2 (Timestamp/from ^Instant finished-at))
+      (.setTimestamp 2 (Timestamp/from ^Instant finished-at) UTC-CALENDAR)
       (.setObject 3 (p/uuid-encode uuid-serializer job-id))
       (.executeUpdate))))
 
@@ -122,7 +130,7 @@
    ^Instant retry-at]
   (with-open [stmt (.prepareStatement conn (retry-at-sql job-table))]
     (doto stmt
-      (.setTimestamp 1 (Timestamp/from retry-at))
+      (.setTimestamp 1 (Timestamp/from retry-at) UTC-CALENDAR)
       (.setObject 2 (p/uuid-encode uuid-serializer job-id))
       (.executeUpdate))))
 
@@ -154,13 +162,13 @@
                 (.setAutoCommit conn initial-auto-commit)
                 (catch Exception _)))))))))
 
-(defn ^PreparedStatement ->null-prepared-statement
+(defn ->null-prepared-statement
   "Create a nullable PreparedStatement.
 
    The various set<Thing> methods update the :data map with the value being set, keyed by the index.
    executeUpdate returns the value in :num-updates if present in store, or 0."
-  ([] (->null-prepared-statement {}))
-  ([init-state]
+  (^PreparedStatement [] (->null-prepared-statement {}))
+  (^PreparedStatement [init-state]
    (let [store (-> init-state
                    (assoc :data {})
                    (atom))
@@ -168,19 +176,20 @@
      (reify
        PreparedStatement
        (setString [_ i x] (set-data! i x))
-       (setTimestamp [_ i x] (set-data! i x))
+       (setTimestamp [_ i x cal] (set-data! i [x cal]))
        (setObject [_ i x] (set-data! i x))
        (executeUpdate [_] (:num-updates @store 0))
        (close [_])
        IDeref
        (deref [_] @store)))))
 
-(defn ^Connection ->null-connection
+(defn ->null-connection
   "Create a nullable Connection.
 
    Output tracking: The returned Connection is also a Clojure IDeref. When dereferenced, it returns a vector of tuples
-   in the order they where created using prepareStatement. Each tuple has the PreparedStatement as the first item and a
+   in the order they were created using prepareStatement. Each tuple has the PreparedStatement as the first item and a
    string with the generated SQL in the second."
+  ^Connection
   []
   (let [store (atom [])]
     (reify

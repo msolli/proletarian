@@ -243,7 +243,7 @@
          WHERE job_id = ?"
             sql)
           "prepares an SQL statement")
-      (is (= {1 #inst"1970-01-01T00:00:00.000000000-00:00"  ;; java.util.Date
+      (is (= {1 [#inst"1970-01-01T00:00:00.000000000-00:00" db/UTC-CALENDAR]
               2 job-id}
              (:data @stmt))
           "sets the SQL params"))))
@@ -276,7 +276,6 @@
                    (get-in ["Plan" "Plans" 0 "Plans" 0])
                    (select-keys ["Index Cond" "Index Name" "Node Type"]))))))))
 
-
 (deftest ->null-prepared-statement-test
   (let [stmt (db/->null-prepared-statement)]
     (is (instance? PreparedStatement stmt)
@@ -284,10 +283,10 @@
 
     (testing "the set<Thing> methods"
       (.setString stmt 0 "a string")
-      (.setTimestamp stmt 1 (Timestamp. 0))
+      (.setTimestamp stmt 1 (Timestamp. 0) db/UTC-CALENDAR)
       (.setObject stmt 2 {:an :object})
       (is (= {0 "a string"
-              1 (Timestamp. 0)
+              1 [(Timestamp. 0) db/UTC-CALENDAR]
               2 {:an :object}}
              (:data @stmt))
           "updates the :data map")))
