@@ -2,6 +2,43 @@
 
 ## [UNRELEASED](https://github.com/msolli/proletarian/compare/v1.0.89-alpha...main)
 
+### Changed
+
+* [CONDITIONALLY BREAKING] Timestamps are stored as UTC regardless of JVM's time
+  zone ([c10bfc9](https://github.com/msolli/proletarian/commit/c10bfc94d1d6239dd8e98d5c44d0f66fa4b04780)).
+
+#### Migrating Existing Jobs
+
+**NOTE:** This change is breaking only if you have workers or job-enqueueing code running in time zones other than UTC.
+If unsure, check by logging the output of `(java.time.ZoneId/systemDefault)`.
+
+**There is no need to migrate existing jobs if your infrastructure is already running in UTC.** The rest of this section
+only applies if you have workers or job-enqueueing code running in time zones other than UTC.
+
+If you have or enqueue jobs when this version of Proletarian goes to production, they may be processed earlier or later
+than intended depending on your time zone offset. You will have to decide if this is acceptable for your application. If
+you need precise migration, you can update existing jobs with SQL:
+
+**PostgreSQL:**
+
+```sql
+-- Example for Europe/Oslo (UTC+2 in summer)
+-- Adjust the timezone to match your current system timezone
+UPDATE proletarian.job
+SET process_at = (process_at AT TIME ZONE 'Europe/Oslo') AT TIME ZONE 'UTC';
+```
+
+**MySQL:**
+
+```sql
+-- Example for Europe/Oslo (UTC+2 in summer)
+-- Adjust the timezone to match your current system timezone
+UPDATE proletarian.job
+SET process_at = CONVERT_TZ(process_at, 'Europe/Oslo', 'UTC');
+```
+
+If you need help managing the transition to UTC, please [open an issue](https://github.com/msolli/proletarian/issues) or
+post a message in [#proletarian](https://clojurians.slack.com/archives/C01UG9GMVBJ) in the Clojurians Slack community.
 
 ## [1.0.89-alpha](https://github.com/msolli/proletarian/compare/v1.0.86-alpha...1.0.89-alpha) - 2024-11-04
 
