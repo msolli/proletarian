@@ -17,15 +17,17 @@ Github URL: https://github.com/msolli/proletarian
 ## Development Commands
 
 ### Running Tests
+
+When doing TDD, prefer running tests in the REPL using the regular clojure.test machinery.
+
+When finishing work, you can run all tests with:
+
 ```bash
 # Run all tests
 make test
 
 # Or directly with Clojure CLI
 clojure -M:test -m kaocha.runner --config-file test/tests.edn
-
-# Run a single test namespace (example)
-clojure -M:test -m kaocha.runner --focus proletarian.db-test
 ```
 
 ### REPL Development
