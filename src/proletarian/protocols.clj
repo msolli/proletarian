@@ -25,3 +25,18 @@
   (uuid-decode [_ job-id]
     "Decode the job-id depending on the chosen database implementation.))
      The default is proletarian.uuid.postgresql."))
+
+(defprotocol JobIdStrategy
+  "Strategy for generating and handling job IDs. Supports both app-generated
+   IDs (like UUID, ULID) and database-generated IDs (like BIGSERIAL)."
+  (generate-id [_]
+    "Generate a new job ID for enqueueing. Returns nil if the database should
+     generate the ID (e.g., BIGSERIAL). Returns a value (e.g., UUID) if the
+     application generates the ID.")
+  (encode-id [_ job-id]
+    "Encode the job ID for database storage. For app-generated IDs, this may
+     transform the ID for the specific database. For DB-generated IDs, this
+     receives nil and returns nil.")
+  (decode-id [_ job-id]
+    "Decode the job ID after reading from the database. Transforms the database
+     representation back to the application representation."))

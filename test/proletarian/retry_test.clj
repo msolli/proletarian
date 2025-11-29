@@ -1,16 +1,10 @@
 (ns proletarian.retry-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is are testing]]
             [proletarian.db :as db]
+            [proletarian.job-id-strategies :as job-id-strategies]
             [proletarian.log :as log]
-            [proletarian.protocols :as p]
             [proletarian.retry :as sut])
   (:import (java.time Clock Instant ZoneId)))
-
-(defn ->null-serializer
-  []
-  (reify p/UuidSerializer
-    (uuid-encode [_ job-id] job-id)
-    (uuid-decode [_ job-id] job-id)))
 
 (deftest retry-data-test
   (let [now (Instant/now)
@@ -87,16 +81,17 @@
         failed-job-fn-was-not-run "Nope"
         failed-job-fn-e (Exception. failed-job-fn-was-run)
         failed-job-fn (fn [_ _] (throw failed-job-fn-e))
+        job-id 42
         now (Instant/now)
         config {::sut/failed-job-fn failed-job-fn
                 ::sut/retry-strategy-fn (constantly {:retries 1})
                 :proletarian.worker/clock (Clock/fixed ^Instant now (ZoneId/systemDefault))
-                ::db/uuid-serializer (->null-serializer)
+                ::db/job-id-strategy (job-id-strategies/->constant-id-strategy job-id)
                 ::db/job-table db/DEFAULT_JOB_TABLE
                 ::db/archived-job-table db/DEFAULT_ARCHIVED_JOB_TABLE}]
     (testing "retries left"
       (let [conn (db/->null-connection)
-            job {:proletarian.job/job-id (random-uuid)
+            job {:proletarian.job/job-id job-id
                  :proletarian.job/attempts 1}
             e (Exception. "An exception")
             log (log/->null-logger)
@@ -119,7 +114,7 @@
 
     (testing "no retries left"
       (let [conn (db/->null-connection)
-            job {:proletarian.job/job-id (random-uuid)
+            job {:proletarian.job/job-id job-id
                  :proletarian.job/attempts 2}
             e (Exception. "An exception")
             log (log/->null-logger)

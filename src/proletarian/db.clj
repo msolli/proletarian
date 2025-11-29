@@ -31,18 +31,20 @@
 
 (defn enqueue!
   [^Connection conn
-   {::keys [job-table serializer uuid-serializer]}
-   {:proletarian.job/keys [job-id queue job-type payload attempts enqueued-at process-at]}]
-  (with-open [stmt (.prepareStatement conn (enqueue-sql job-table))]
-    (doto stmt
-      (.setObject 1 (p/uuid-encode uuid-serializer job-id))
-      (.setString 2 (str queue))
-      (.setString 3 (str job-type))
-      (.setString 4 (p/encode serializer payload))
-      (.setInt 5 attempts)
-      (.setTimestamp 6 (Timestamp/from ^Instant enqueued-at) UTC-CALENDAR)
-      (.setTimestamp 7 (Timestamp/from ^Instant process-at) UTC-CALENDAR)
-      (.executeUpdate))))
+   {::keys [job-table serializer job-id-strategy]}
+   {:proletarian.job/keys [queue job-type payload attempts enqueued-at process-at]}]
+  (let [job-id (p/generate-id job-id-strategy)]
+    (with-open [stmt (.prepareStatement conn (enqueue-sql job-table))]
+      (doto stmt
+        (.setObject 1 (p/encode-id job-id-strategy job-id))
+        (.setString 2 (str queue))
+        (.setString 3 (str job-type))
+        (.setString 4 (p/encode serializer payload))
+        (.setInt 5 attempts)
+        (.setTimestamp 6 (Timestamp/from ^Instant enqueued-at) UTC-CALENDAR)
+        (.setTimestamp 7 (Timestamp/from ^Instant process-at) UTC-CALENDAR)
+        (.executeUpdate)))
+    job-id))
 
 (def get-next-job-sql
   (memoize
@@ -58,14 +60,14 @@
         job-table))))
 
 (defn get-next-job
-  [^Connection conn {::keys [job-table serializer uuid-serializer]} queue now]
+  [^Connection conn {::keys [job-table serializer job-id-strategy]} queue now]
   (with-open [stmt (.prepareStatement conn (get-next-job-sql job-table))]
     (doto stmt
       (.setString 1 (str queue))
       (.setTimestamp 2 (Timestamp/from ^Instant now) UTC-CALENDAR))
     (let [rs (.executeQuery stmt)]
       (when (.next rs)
-        #:proletarian.job{:job-id (p/uuid-decode uuid-serializer (.getObject rs 1))
+        #:proletarian.job{:job-id (p/decode-id job-id-strategy (.getObject rs 1))
                           :queue (edn/read-string (.getString rs 2))
                           :job-type (edn/read-string (.getString rs 3))
                           :payload (p/decode serializer (.getString rs 4))
@@ -85,7 +87,7 @@
 
 (defn archive-job!
   [^Connection conn
-   {::keys [job-table archived-job-table uuid-serializer]}
+   {::keys [job-table archived-job-table job-id-strategy]}
    job-id
    status
    finished-at]
@@ -93,7 +95,7 @@
     (doto stmt
       (.setString 1 (str status))
       (.setTimestamp 2 (Timestamp/from ^Instant finished-at) UTC-CALENDAR)
-      (.setObject 3 (p/uuid-encode uuid-serializer job-id))
+      (.setObject 3 (p/encode-id job-id-strategy job-id))
       (.executeUpdate))))
 
 (def delete-job-sql
@@ -106,11 +108,11 @@
 
 (defn delete-job!
   [^Connection conn
-   {::keys [job-table uuid-serializer]}
+   {::keys [job-table job-id-strategy]}
    job-id]
   (with-open [stmt (.prepareStatement conn (delete-job-sql job-table))]
     (doto stmt
-      (.setObject 1 (p/uuid-encode uuid-serializer job-id))
+      (.setObject 1 (p/encode-id job-id-strategy job-id))
       (.executeUpdate))))
 
 (def retry-at-sql
@@ -125,13 +127,13 @@
 
 (defn retry-at!
   [^Connection conn
-   {::keys [job-table uuid-serializer]}
+   {::keys [job-table job-id-strategy]}
    job-id
    ^Instant retry-at]
   (with-open [stmt (.prepareStatement conn (retry-at-sql job-table))]
     (doto stmt
       (.setTimestamp 1 (Timestamp/from retry-at) UTC-CALENDAR)
-      (.setObject 2 (p/uuid-encode uuid-serializer job-id))
+      (.setObject 2 (p/encode-id job-id-strategy job-id))
       (.executeUpdate))))
 
 (defn with-connection [^DataSource ds f]
@@ -176,6 +178,7 @@
      (reify
        PreparedStatement
        (setString [_ i x] (set-data! i x))
+       (setInt [_ i x] (set-data! i x))
        (setTimestamp [_ i x cal] (set-data! i [x cal]))
        (setObject [_ i x] (set-data! i x))
        (executeUpdate [_] (:num-updates @store 0))

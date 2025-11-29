@@ -2,14 +2,14 @@
   (:require [clojure.set :as set]
             [clojure.spec.alpha :as spec]
             [clojure.spec.gen.alpha :as spec.gen]
-            [clojure.test :refer :all]
+            [clojure.test :refer [deftest is testing use-fixtures]]
             [jsonista.core :as json]
             [next.jdbc :as jdbc]
             [proletarian.db :as db]
+            [proletarian.job-id-strategies :as job-id-strategies]
             [proletarian.protocols :as p]
             [proletarian.test.config :as config]
-            [proletarian.transit :as transit]
-            [proletarian.uuid.postgresql :as pg-uuid])
+            [proletarian.transit :as transit])
   (:import (java.sql Connection PreparedStatement Timestamp)
            (java.time Instant LocalDateTime ZoneOffset)
            (java.time.temporal ChronoUnit)
@@ -43,7 +43,7 @@
 (def config {::db/job-table db/DEFAULT_JOB_TABLE
              ::db/archived-job-table db/DEFAULT_ARCHIVED_JOB_TABLE
              ::db/serializer (transit/create-serializer)
-             ::db/uuid-serializer (pg-uuid/create-serializer)})
+             ::db/job-id-strategy (job-id-strategies/->postgresql-uuid-strategy)})
 
 (defn gen-instant
   []
@@ -65,7 +65,6 @@
       (spec.gen/int)
       (spec.gen/int))))
 
-(spec/def :proletarian.job/job-id uuid?)
 (spec/def :proletarian.job/queue keyword?)
 (spec/def :proletarian.job/job-type keyword?)
 (spec/def :proletarian.job/payload map?)
@@ -76,8 +75,7 @@
   (spec/with-gen inst? gen-instant))
 
 (spec/def :proletarian/job
-  (spec/keys :req [:proletarian.job/job-id
-                   :proletarian.job/queue
+  (spec/keys :req [:proletarian.job/queue
                    :proletarian.job/job-type
                    :proletarian.job/payload
                    :proletarian.job/attempts
@@ -98,92 +96,96 @@
                            #(.isBefore (Instant/now) (:proletarian.job/process-at %))
                            (spec/gen :proletarian/job)))))
 
-(deftest test-enqueue!
-  (with-conn
-    (fn [conn]
-      (let [job (spec.gen/generate (spec/gen :proletarian/job))]
-        (db/enqueue! conn config job)
-        (is (= (-> job
-                   (update :proletarian.job/queue str)
-                   (update :proletarian.job/job-type str)
-                   (update :proletarian.job/payload #(p/encode (::db/serializer config) %))
-                   (update :proletarian.job/enqueued-at #(Timestamp/from ^Instant %))
-                   (update :proletarian.job/process-at #(Timestamp/from ^Instant %))
-                   (set/rename-keys {:proletarian.job/job-id :job/job_id
-                                     :proletarian.job/queue :job/queue
-                                     :proletarian.job/job-type :job/job_type
-                                     :proletarian.job/payload :job/payload
-                                     :proletarian.job/attempts :job/attempts
-                                     :proletarian.job/enqueued-at :job/enqueued_at
-                                     :proletarian.job/process-at :job/process_at}))
-               (jdbc/execute-one! conn ["SELECT * FROM proletarian.job LIMIT 1"])))))))
+(deftest enqueue!-test
+  (testing "with PostgresqlUuidJobIdStrategy"
+    (with-conn
+      (fn [conn]
+        (let [job (spec.gen/generate (spec/gen :proletarian/job))
+              job-id (db/enqueue! conn config job)]
+          (is (uuid? job-id))
+          (is (= (-> job
+                     (assoc :proletarian.job/job-id job-id)
+                     (update :proletarian.job/queue str)
+                     (update :proletarian.job/job-type str)
+                     (update :proletarian.job/payload #(p/encode (::db/serializer config) %))
+                     (update :proletarian.job/enqueued-at #(Timestamp/from ^Instant %))
+                     (update :proletarian.job/process-at #(Timestamp/from ^Instant %))
+                     (set/rename-keys {:proletarian.job/job-id :job/job_id
+                                       :proletarian.job/queue :job/queue
+                                       :proletarian.job/job-type :job/job_type
+                                       :proletarian.job/payload :job/payload
+                                       :proletarian.job/attempts :job/attempts
+                                       :proletarian.job/enqueued-at :job/enqueued_at
+                                       :proletarian.job/process-at :job/process_at}))
+                 (jdbc/execute-one! conn ["SELECT * FROM proletarian.job LIMIT 1"]))))))))
 
-(deftest test-get-next-job-with-process-at-in-the-past
+(deftest get-next-job-test
+  (testing "with process-at in the past"
+    (with-conn
+      (fn [conn]
+        (let [job (gen-job-past)
+              now (Instant/now)
+              job-id (db/enqueue! conn config job)]
+          (is (= (assoc job :proletarian.job/job-id job-id)
+                 (db/get-next-job conn config (:proletarian.job/queue job) now)))))))
+
+  (testing "with process-at in the future"
+    (with-conn
+      (fn [conn]
+        (let [job (gen-job-future)
+              now (Instant/now)]
+          (db/enqueue! conn config job)
+          (is (= 1
+                 (-> (jdbc/execute-one! conn ["SELECT COUNT(*) FROM proletarian.job"])
+                     :count)))
+          (is (nil?
+                (db/get-next-job conn config (:proletarian.job/queue job) now)))))))
+
+  (testing "gets the oldest job"
+    (with-conn
+      (fn [conn]
+        (let [job-a (gen-job-past {:proletarian.job/queue :proletarian/default})
+              job-b (gen-job-past {:proletarian.job/queue :proletarian/default})
+              job-a (assoc job-a :proletarian.job/job-id (db/enqueue! conn config job-a))
+              job-b (assoc job-b :proletarian.job/job-id (db/enqueue! conn config job-b))
+              oldest-job (->> [job-a job-b] (sort-by :proletarian.job/process-at) (first))
+              now (Instant/now)]
+          (is (= oldest-job
+                 (db/get-next-job conn config :proletarian/default now)))))))
+
+  (testing "skips locked"
+    (with-conn
+      (fn [conn]
+        (let [finish-job-a (promise)
+              job-a-id (atom nil)
+              job-b-id (atom nil)
+              now (Instant/now)]
+          (db/enqueue! conn config (gen-job-past {:proletarian.job/queue :proletarian/default}))
+          (db/enqueue! conn config (gen-job-past {:proletarian.job/queue :proletarian/default}))
+          (future
+            (try
+              (jdbc/with-transaction [tx @data-source]
+                (reset! job-a-id (-> (db/get-next-job tx config :proletarian/default now) :proletarian.job/job-id))
+                (deref finish-job-a))
+              (catch Exception e
+                (println e))))
+          (future
+            (try
+              (jdbc/with-transaction [tx @data-source]
+                (reset! job-b-id (-> (db/get-next-job tx config :proletarian/default now) :proletarian.job/job-id))
+                (deliver finish-job-a :done))
+              (catch Exception e
+                (println e))))
+          (deref finish-job-a)
+          (is (not= @job-a-id @job-b-id)))))))
+
+(deftest archive-job!-test
   (with-conn
     (fn [conn]
       (let [job (gen-job-past)
+            job-id (db/enqueue! conn config job)
+            job (assoc job :proletarian.job/job-id job-id)
             now (Instant/now)]
-        (db/enqueue! conn config job)
-        (is (= job
-               (db/get-next-job conn config (:proletarian.job/queue job) now)))))))
-
-(deftest test-get-next-job-with-process-at-in-the-future
-  (with-conn
-    (fn [conn]
-      (let [job (gen-job-future)
-            now (Instant/now)]
-        (db/enqueue! conn config job)
-        (is (= 1
-               (-> (jdbc/execute-one! conn ["SELECT COUNT(*) FROM proletarian.job"])
-                   :count)))
-        (is (nil?
-              (db/get-next-job conn config (:proletarian.job/queue job) now)))))))
-
-(deftest test-get-next-job-gets-the-oldest-job
-  (with-conn
-    (fn [conn]
-      (let [job-a (gen-job-past {:proletarian.job/queue :proletarian/default})
-            job-b (gen-job-past {:proletarian.job/queue :proletarian/default})
-            oldest-job (->> [job-a job-b] (sort-by :proletarian.job/process-at) (first))
-            now (Instant/now)]
-        (db/enqueue! conn config job-a)
-        (db/enqueue! conn config job-b)
-        (is (= oldest-job
-               (db/get-next-job conn config :proletarian/default now)))))))
-
-(deftest test-get-next-job-skips-locked
-  (with-conn
-    (fn [conn]
-      (let [finish-job-a (promise)
-            job-a-id (atom nil)
-            job-b-id (atom nil)
-            now (Instant/now)]
-        (db/enqueue! conn config (gen-job-past {:proletarian.job/queue :proletarian/default}))
-        (db/enqueue! conn config (gen-job-past {:proletarian.job/queue :proletarian/default}))
-        (future
-          (try
-            (jdbc/with-transaction [tx @data-source]
-              (reset! job-a-id (-> (db/get-next-job tx config :proletarian/default now) :proletarian.job/job-id))
-              (deref finish-job-a))
-            (catch Exception e
-              (println e))))
-        (future
-          (try
-            (jdbc/with-transaction [tx @data-source]
-              (reset! job-b-id (-> (db/get-next-job tx config :proletarian/default now) :proletarian.job/job-id))
-              (deliver finish-job-a :done))
-            (catch Exception e
-              (println e))))
-        (deref finish-job-a)
-        (is (not= @job-a-id @job-b-id))))))
-
-(deftest test-archive-job!
-  (with-conn
-    (fn [conn]
-      (let [job (gen-job-past)
-            job-id (:proletarian.job/job-id job)
-            now (Instant/now)]
-        (db/enqueue! conn config job)
         (db/archive-job! conn config job-id :success now)
         (is (= (-> job
                    (update :proletarian.job/queue str)
@@ -203,26 +205,25 @@
                                      :proletarian.job/process-at :archived_job/process_at}))
                (jdbc/execute-one! conn ["SELECT * FROM proletarian.archived_job WHERE job_id = ?" job-id])))))))
 
-(deftest test-delete-job!
+(deftest delete-job!-test
   (with-conn
     (fn [conn]
       (let [job (gen-job-past)
-            job-id (:proletarian.job/job-id job)]
-        (db/enqueue! conn config job)
+            job-id (db/enqueue! conn config job)]
         (db/delete-job! conn config job-id)
         (is (zero?
               (-> (jdbc/execute-one! conn ["SELECT COUNT(*) FROM proletarian.job"])
                   :count)))))))
 
-(deftest test-retry-at!
+(deftest retry-at!-test
   (testing "with actual Connection"
     (with-conn
       (fn [conn]
         (let [job (gen-job-past)
-              job-id (:proletarian.job/job-id job)
+              job-id (db/enqueue! conn config job)
+              job (assoc job :proletarian.job/job-id job-id)
               attempts (:proletarian.job/attempts job)
               now (Instant/now)]
-          (db/enqueue! conn config job)
           (db/retry-at! conn config job-id now)
           (is (= (assoc job :proletarian.job/process-at now
                             :proletarian.job/attempts (inc attempts))

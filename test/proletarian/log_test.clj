@@ -1,5 +1,5 @@
 (ns proletarian.log-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is testing]]
             [proletarian.log :as sut]))
 
 (deftest ->null-logger-test

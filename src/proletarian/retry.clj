@@ -56,7 +56,7 @@
     (if (pos-int? (:retries-left retry-spec))
       (let [{:keys [retries-left retry-at]} retry-spec]
         (log ::retrying {:retry-at retry-at :retries-left retries-left})
-        (db/retry-at! conn config (:proletarian.job/job-id job) retry-at))
+        (db/retry-at! conn config job-id retry-at))
       (do
         (log ::not-retrying {:retry-spec retry-spec})
         (db/archive-job! conn config job-id :failure finished-at)

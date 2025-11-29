@@ -1,67 +1,61 @@
 (ns proletarian.job-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is testing]]
             [proletarian.db :as db]
             [proletarian.job :as sut]
-            [proletarian.protocols :as p])
-  (:import (java.sql Connection)
+            [proletarian.job-id-strategies :as job-id-strategies]
+            [proletarian.transit :as transit])
+  (:import (java.sql Timestamp)
            (java.time Clock Duration Instant ZoneId)))
 
 (set! *warn-on-reflection* true)
 
-(def conn-stub (reify Connection))
+(def conn (db/->null-connection))
+(def constant-id-strategy (job-id-strategies/->constant-id-strategy 42))
 
 (deftest enqueue!-test
   (testing "return value"
-    (with-redefs [db/enqueue! (constantly nil)]
-      (is (uuid? (sut/enqueue! conn-stub :foo {}))
-          "returns a job-id (UUID)")
+    (is (uuid? (sut/enqueue! conn :foo {}))
+        "returns the job-id (UUID by default)")
 
-      (let [job-id (random-uuid)]
-        (is (= job-id (sut/enqueue! conn-stub :foo {} :proletarian/uuid-fn (constantly job-id)))
-            "returns a job-id from the provided uuid-fn"))))
+    (testing "when a job-id-strategy is provided"
+      (is (= 42 (sut/enqueue! conn :foo {} :proletarian/job-id-strategy constant-id-strategy))
+          "returns the job-id from the job-id-provider")))
 
   (testing "assertions"
     (is (thrown? AssertionError
-                 (sut/enqueue! conn-stub :foo {} :proletarian/uuid-fn (constantly "not-a-uuid")))
-        "throws when job-id is not a UUID")
+                 (sut/enqueue! conn :foo {} :proletarian/job-id-strategy ::bogus))
+        "throws when job-id-strategy is not a JobIdStrategy")
 
     (is (thrown? AssertionError
                  (sut/enqueue! :invalid-conn :foo {}))
         "throws when conn is not a Connection")
 
     (is (thrown? AssertionError
-                 (sut/enqueue! conn-stub :foo {} :proletarian/serializer :not-a-serializer))
+                 (sut/enqueue! conn :foo {} :proletarian/serializer :not-a-serializer))
         "throws when the serializer is not a Serializer"))
 
   (testing "calling db/enqueue"
-    (let [spy (volatile! ::not-called)
-          serializer (reify p/Serializer)
-          uuid-serializer (reify p/UuidSerializer)
-          job-id (random-uuid)
+    (let [null-conn (db/->null-connection)
+          serializer (transit/create-serializer)
           clock (Clock/fixed (Instant/now) (ZoneId/systemDefault))]
-      (with-redefs [db/enqueue! (fn [& args] (vreset! spy args))]
-        (sut/enqueue! conn-stub :foo [:the-payload]
-                      :proletarian/serializer serializer
-                      :proletarian/uuid-fn (constantly job-id)
-                      :proletarian/uuid-serializer uuid-serializer 
-                      :proletarian/clock clock))
-      (let [[conn' db-opts' job'] @spy]
-        (is (= conn-stub conn')
-            "passes the Connection object")
-        (is (= #:proletarian.db{:job-table db/DEFAULT_JOB_TABLE
-                                :serializer serializer
-                                :uuid-serializer uuid-serializer}
-               db-opts')
-            "passes the database options")
-        (is (= #:proletarian.job{:job-id job-id
-                                 :queue db/DEFAULT_QUEUE
-                                 :job-type :foo
-                                 :payload [:the-payload]
-                                 :attempts 0
-                                 :enqueued-at (Instant/now clock)
-                                 :process-at (Instant/now clock)}
-               job')
-            "passes the job")))))
+      (sut/enqueue! null-conn :foo [:the-payload]
+                    :proletarian/serializer serializer
+                    :proletarian/job-id-strategy constant-id-strategy
+                    :proletarian/clock clock)
+      (let [[prepared-stmt sql] (first @null-conn)
+            prepared-data (:data @prepared-stmt)]
+        (is (= "INSERT INTO proletarian.job (job_id, queue, job_type, payload, attempts, enqueued_at, process_at)\n         VALUES (?, ?, ?, ?, ?, ?, ?)"
+               sql)
+            "generates an SQL string")
+        (is (= {1 42
+                2 ":proletarian/default"
+                3 ":foo"
+                4 "[\"~:the-payload\"]"
+                5 0
+                6 [(Timestamp/from (Instant/now clock)) db/UTC-CALENDAR]
+                7 [(Timestamp/from (Instant/now clock)) db/UTC-CALENDAR]}
+               prepared-data)
+            "sets data on the PreparedStatement")))))
 
 (deftest ->process-at-test
   (let [clock (Clock/fixed (Instant/now) (ZoneId/systemDefault))
