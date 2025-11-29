@@ -92,7 +92,7 @@ make mvn.install
 
 **proletarian.protocols** - Core protocols
 - `Serializer` - Job payload serialization (default: Transit)
-- `UuidSerializer` - UUID handling for PostgreSQL vs MySQL differences
+- `JobIdStrategy` - Strategy for generating and handling job IDs.
 - `QueueWorker` - Worker lifecycle protocol
 
 ### Key Design Patterns
