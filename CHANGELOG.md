@@ -1,13 +1,15 @@
 # Changelog
 
-## [UNRELEASED](https://github.com/msolli/proletarian/compare/v1.0.89-alpha...main)
+## [1.0.109-alpha](https://github.com/msolli/proletarian/compare/v1.0.89-alpha...1.0.109-alpha)
 
 ### Changed
 
 * [CONDITIONALLY BREAKING] Timestamps are stored as UTC regardless of JVM's time
   zone ([c10bfc9](https://github.com/msolli/proletarian/commit/c10bfc94d1d6239dd8e98d5c44d0f66fa4b04780)).
+* [CONDITIONALLY BREAKING] JobIdStrategy protocol is introduced to support any
+  job-id type ([8b71d06](https://github.com/msolli/proletarian/commit/8b71d06b3a959acb4a0f4766ce8bfbfbb9c5db4c)).
 
-#### Migrating Existing Jobs
+#### Timestamps as UTC
 
 **NOTE:** This change is breaking only if you have workers or job-enqueueing code running in time zones other than UTC.
 If unsure, check by logging the output of `(java.time.ZoneId/systemDefault)`.
@@ -39,6 +41,21 @@ SET process_at = CONVERT_TZ(process_at, 'Europe/Oslo', 'UTC');
 
 If you need help managing the transition to UTC, please [open an issue](https://github.com/msolli/proletarian/issues) or
 post a message in [#proletarian](https://clojurians.slack.com/archives/C01UG9GMVBJ) in the Clojurians Slack community.
+
+#### JobIdStrategy protocol
+
+Proletarian was inflexible in its handling of jobs ids. Only UUIDs were accepted, and there was no support for
+database-generated job ids. A `UuidSerializer` protocol handled the serialization and deserialization of UUIDs (required
+for MySQL support).
+
+This new change introduces the `JobIdStrategy` protocol, which makes job id handling user-configurable. Its methods
+`generate-id`, `encode-id` and `decode-id` together encapsulates job id behavior. Default implementations for UUIDs with
+PostgreSQL and MySQL are provided.
+
+This is a breaking change for anyone that uses the `:proletarian/uuid-serializer` config option. This option is likely
+used only by MySQL users.
+
+To upgrade, replace with `:proletarian/job-id-strategy (job-id-strategies/->mysql-uuid-strategy)`.
 
 ## [1.0.89-alpha](https://github.com/msolli/proletarian/compare/v1.0.86-alpha...1.0.89-alpha) - 2024-11-04
 

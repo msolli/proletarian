@@ -99,9 +99,9 @@ namespace, and the enqueuing of a job in another namespace:
 ### Logging
 
 Proletarian does not depend on a logging framework, and has no opinions on how you should log in your application.
-The `:proletarian/log` option to `create-queue-worker` specifies a function that is called by the Queue Worker when
-anything interesting and log-worthy happens during operation. It takes two arguments: The first is a keyword
-identifying the event being logged. The second is a map with data describing the event.
+The `:proletarian/log` option to `create-queue-worker` specifies a function that is going to be called by the Queue
+Worker when anything interesting and log-worthy happens during operation. It takes two arguments: The first is a
+keyword identifying the event being logged. The second is a map with data describing the event.
 
 If you do not specify a logging function, the default is simply a `println`-logger that will print every event using
 `println`.
@@ -140,12 +140,12 @@ requirements here. A sensible default might be something like this (using `cloju
 Add Proletarian to your [`deps.edn`](https://clojure.org/guides/deps_and_cli)
 file:
 ```clojure
-msolli/proletarian {:mvn/version "1.0.89-alpha"}
+msolli/proletarian {:mvn/version "1.0.109-alpha"}
 ```
 
 Or to your [`project.clj`](https://github.com/technomancy/leiningen/blob/stable/sample.project.clj) for Leiningen:
 ```clojure
-[msolli/proletarian "1.0.89-alpha"]
+[msolli/proletarian "1.0.109-alpha"]
 ```
 
 Proletarian works with your existing PostgreSQL/MySQL database. It uses
@@ -191,15 +191,15 @@ PostgreSQL/MySQL schema and table names, but then you'll need to provide the
 
 ## Examples
 
-This repository contains a few examples that demonstrates features and usage
+This repository contains a few examples that demonstrate features and usage
 patterns. You can run these by cloning this repo, execute a script to set up an
 example Proletarian database, and then run the examples from your terminal. All
 the details are in the example docs:
 
-- [Example A - The Basics](./doc/example-a.md)
-- Example B - Failure and Retries - not documented yet, but fully functional
+- [Example A – The Basics](./doc/example-a.md)
+- Example B – Failure and Retries – not documented yet, but fully functional
   (source: [examples/example_b](./examples/example_b))
-- Example C - Job Interruption and Queue Worker Shutdown - not documented yet,
+- Example C – Job Interruption and Queue Worker Shutdown – not documented yet,
   but fully functional (source:
   [examples/example_c](./examples/example_c))
 
@@ -269,12 +269,12 @@ do its work. Examples of this could be things like database and other
   )
 ```
 
-## At Least Once Processing, Idempotence, and Retries
+## At Least Once Processing, Idempotence and Retries
 
 Proletarian goes to great lengths to ensure that no jobs are lost due to
 exceptions, network errors, database failure, computers catching fire or other
 facts of life. It relies on PostgreSQL/MySQL transactions to protect the
-integrity of the jobs tables while polling and running jobs. A job will not be
+integrity of the job tables while polling and running jobs. A job will not be
 removed from the queue until it has finished successfully. It is moved to the
 archive table in the same transaction.
 
@@ -302,8 +302,8 @@ This function should return the retry strategy, which is a map with the keys
 `:retries` and `:delays`. See below for an explanation.
 The Queue Worker calls this function when an exception is caught for the job
 handler. The job and the exception are passed as arguments. You can use these
-to make informed decisions about how to proceed. The exception might for
-example contain information on when to retry an HTTP call (from a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
+to make informed decisions about how to proceed. The exception might, for
+example, contain information on when to retry an HTTP call (from a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
 HTTP header). [Example B](examples/example_b) implements something like
 this. In most cases, however, a simple static retry strategy will suffice.
 
@@ -365,7 +365,7 @@ after 5 seconds.
  :delays [2000 10000]}
 ```
 This will retry four times. The first time after 2 seconds, the second after 10
-seconds, the third after another 10 seconds, and the fourth after yet another
+seconds, the third after another 10 seconds and the fourth after yet another
 10 seconds.
 
 ### Failed Jobs
@@ -393,8 +393,8 @@ simply stop polling. If the worker thread is busy running a job, it's the job's
 responsibility to handle interrupts.
 
 Most of the time, if you have jobs that run quickly (less than a few seconds),
-you can simply ignore interrupts. Your job will finish, and the worker thread
-will not pick up any more jobs.
+you can ignore interrupts. Your job will finish, and the worker thread will not
+pick up any more jobs.
 
 On the other hand, if your job takes a long time to finish, you should handle
 interrupts one of two ways:
@@ -433,7 +433,7 @@ for how to do the example database install scripts.
 
 MIT License
 
-Copyright (c) 2020-2025 Martin Solli
+Copyright © 2020–2025 Martin Solli
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

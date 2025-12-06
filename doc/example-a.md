@@ -1,4 +1,4 @@
-# Example A - The Basics
+# Example A – The Basics
 
 This example demonstrates a Queue Worker process that polls the default queue
 for jobs, and how to enqueue jobs for this Queue Worker.
@@ -104,9 +104,9 @@ Starting worker for :proletarian/default queue with polling interval 5 s
 Leave this process running while you continue to step 3.
 
 What is happening here, is that we've started a Queue Worker thread pool in a
-JVM process that continuously polls the jobs table for new work to be done. The
-polling interval is configurable - in this example it is 5 seconds. (In a
-production system you'd probably use a much smaller polling interval - the 
+JVM process that continuously polls the job table for new work to be done. The
+polling interval is configurable – in this example it is 5 seconds. (In a
+production system you'd probably use a much smaller polling interval – the 
 default is 100 ms. For this example, though, it is much easier to see what's
 going on with a larger polling interval.)
 
@@ -161,8 +161,8 @@ Things to note:
   to `:example-a.enqueue-jobs/echo`, as seen in the output above.
 - The payload is serialized
   using [Transit](https://github.com/cognitect/transit-clj), and stored in
-  a `TEXT` column in the database. Proletarian de-serializes the payload and
-  passes it to the handler. The serializer is configurable - just implement
+  a `TEXT` column in the database. Proletarian deserializes the payload and
+  passes it to the handler. The serializer is configurable – implement
   the `proletarian.protocols/Serializer` protocol and pass an instance of this
   under the `:proletarian/serializer` option to
   `proletarian.job/enqueue!` and `proletarian.worker/queue-worker-controller`.
