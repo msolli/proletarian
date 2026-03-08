@@ -1,7 +1,7 @@
 .PHONY: test clean jar examples.db.install examples.db.uninstall examples.db.recreate
 
 VERSION_PREFIX := 1.0.
-VERSION_SUFFIX := -alpha
+VERSION_SUFFIX :=
 GIT_COMMIT_COUNT := $(shell git rev-list --count HEAD)
 VERSION := $(VERSION_PREFIX)$(GIT_COMMIT_COUNT)$(VERSION_SUFFIX)
 
@@ -44,11 +44,11 @@ cljdoc.import: mvn.install CHANGELOG.md README.md doc/*
 	--volume "$(HOME)/.m2:/root/.m2" \
 	--volume /tmp/cljdoc:/app/data \
 	--entrypoint clojure cljdoc/cljdoc \
-	-A:cli ingest \
+	-M:cli ingest \
 	--project msolli/proletarian \
 	--version $(VERSION) \
 	--git /git-repo \
 	--rev $(shell git rev-parse HEAD)
 
 clean:
-	rm -rf target
+	clojure -T:build clean
