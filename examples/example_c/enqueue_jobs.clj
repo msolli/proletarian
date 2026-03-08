@@ -1,5 +1,6 @@
 (ns example-c.enqueue-jobs
-  (:require [examples.common :as common]
+  (:require [clojure.core.async :as async]
+            [examples.common :as common]
             [next.jdbc :as jdbc]
             [proletarian.job :as job]
             [puget.printer :as puget])
@@ -15,14 +16,29 @@
     (println "Adding new blocking job to :proletarian/default queue:")
     (let [conn (jdbc/get-connection ds)
           job-type ::blocking-job
-          payload {:sleep-ms  10000
+          payload {:sleep-ms 10000
                    :timestamp (Instant/now)}
           job-id (job/enqueue! conn job-type payload)]
-      (puget/cprint {:job-id   job-id
+      (puget/cprint {:job-id job-id
                      :job-type ::blocking-job
-                     :payload  payload}))))
+                     :payload payload}))))
 
 (defn run-2
+  "Enqueue a blocking job that uses core.async/<!! and can be interrupted."
+  [_]
+  (let [ds (jdbc/get-datasource (:jdbc-url common/config))]
+    (common/preamble ds)
+    (println "Adding new core.async blocking job to :proletarian/default queue:")
+    (let [conn (jdbc/get-connection ds)
+          job-type ::async-blocking-job
+          payload {:wait-ms 10000
+                   :timestamp (Instant/now)}
+          job-id (job/enqueue! conn job-type payload)]
+      (puget/cprint {:job-id job-id
+                     :job-type job-type
+                     :payload payload}))))
+
+(defn run-3
   "Enqueue a CPU-bound job that can not be interrupted."
   [_]
   (let [ds (jdbc/get-datasource (:jdbc-url common/config))]
@@ -30,12 +46,12 @@
     (println "Adding new time-consuming job to :proletarian/default queue:")
     (let [conn (jdbc/get-connection ds)
           job-type ::cpu-bound-job
-          payload {:run-ms    10000
+          payload {:run-ms 10000
                    :timestamp (Instant/now)}
           job-id (job/enqueue! conn job-type payload)]
-      (puget/cprint {:job-id   job-id
-                     :job-type ::blocking-job
-                     :payload  payload}))))
+      (puget/cprint {:job-id job-id
+                     :job-type ::cpu-bound-job
+                     :payload payload}))))
 
 (defmulti handle-job!
   "This multimethod is passed as an argument to create-queue-worker as the job handler function. It is called by the
@@ -54,7 +70,7 @@
   [{:proletarian.job/keys [job-type payload]}]
   (throw (ex-info (format "handle-job! multimethod not implemented for job-type '%s'" job-type)
                   {:job-type job-type
-                   :payload  payload})))
+                   :payload payload})))
 
 (defmethod handle-job! ::blocking-job
   [{{:keys [sleep-ms timestamp] :as payload} :proletarian.job/payload}]
@@ -71,6 +87,25 @@
   (println "If you don't interrupt, then the job will finish and won't be run again.")
   (println)
   (Thread/sleep ^long sleep-ms)
+  (println "Done."))
+
+(defmethod handle-job! ::async-blocking-job
+  [{{:keys [wait-ms timestamp] :as payload} :proletarian.job/payload}]
+  (println (str "Running job " ::async-blocking-job ". Payload:"))
+  (puget/cprint payload)
+  (let [ch (async/chan)]
+    (println (str "Waiting on core.async/<!! for " wait-ms " ms..."))
+    (println "If you press Ctrl-C now, you should observe the following events:")
+    (println " " :proletarian.executor/shutting-down)
+    (println " " :proletarian.worker/job-interrupted)
+    (println " " :proletarian.executor/completed-shutdown)
+    (println)
+    (println (format "The current job (timestamp: %s) should then be picked up\nagain when restarting the worker process."
+                     timestamp))
+    (println "If you don't interrupt, then the job will finish and won't be run again.")
+    (println)
+    (async/<!! (async/timeout wait-ms))
+    (async/close! ch))
   (println "Done."))
 
 (defmethod handle-job! ::cpu-bound-job

@@ -197,10 +197,8 @@ example Proletarian database, and then run the examples from your terminal. All
 the details are in the example docs:
 
 - [Example A – The Basics](./doc/example-a.md)
-- [Example B – Retries and Failure Handling](./doc/example-b.md))
-- Example C – Job Interruption and Queue Worker Shutdown – not documented yet,
-  but fully functional (source:
-  [examples/example_c](./examples/example_c))
+- [Example B – Retries and Failure Handling](./doc/example-b.md)
+- [Example C – Shutdown and Interrupt Handling](./doc/example-c.md)
 
 ## Terminology
 
