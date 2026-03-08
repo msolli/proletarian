@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.115](https://github.com/msolli/proletarian/compare/v1.0.109-alpha...v1.0.115)
+
+Proletarian is now out of alpha.
+
+### Changed
+
+* All dependencies are updated to latest versions
+
+### Added
+
+* Documentation for Example B and Example C.
+* Clarified Example A documentation.
+
 ## [1.0.109-alpha](https://github.com/msolli/proletarian/compare/v1.0.89-alpha...1.0.109-alpha)
 
 ### Changed
