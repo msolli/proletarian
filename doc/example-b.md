@@ -18,19 +18,16 @@ To run this example, you'll need the same setup as [Example A](example-a.md):
   [Example A](example-a.md) for details). If you've already run Example A, you
   might want to start fresh with `make examples.db.recreate`.
 
-All right, let's get started.
-
 ### 1. Run the Queue Worker
 
 In one of your terminal windows, run this command to start the Queue Worker:
-```
-$ clj -X:examples example-b.worker/run
+```shell
+clj -X:examples example-b.worker/run
 ```
 
 It should start a process that polls the default queue for jobs every 5 seconds:
 
 ```
-$ clj -X:examples example-b.worker/run
 Number of jobs in :proletarian/default queue: 0
 Number of jobs in proletarian.jobs table: 0
 Number of jobs in proletarian.archived_jobs table: 0
@@ -60,8 +57,8 @@ have:
   summary of successful and failed jobs.
 
 You can also configure the number of worker threads and the polling interval:
-```
-$ clj -X:examples example-b.worker/run :worker-threads 2 :polling-interval 1
+```shell
+clj -X:examples example-b.worker/run :worker-threads 2 :polling-interval 1
 ```
 
 The code for this can be found in
@@ -71,24 +68,18 @@ namespace.
 ### 2. Enqueue some jobs
 
 In your other terminal window, run this command to enqueue a batch of 10 jobs:
-```
-$ clj -X:examples example-b.enqueue-jobs/run
+```shell
+clj -X:examples example-b.enqueue-jobs/run
 ```
 
 It should add 10 jobs to the default queue and print the job details:
 
 ```
-$ clj -X:examples example-b.enqueue-jobs/run
-Number of jobs in :proletarian/default queue: 0
-Number of jobs in proletarian.jobs table: 0
-Number of jobs in proletarian.archived_jobs table: 10
-There are jobs in the tables already. If you want accurate stats in the end summary, you must run 'make examples.db.recreate' before running the examples.
-
 Adding 10 new jobs to :proletarian/default queue:
-{:job-id #uuid "a1b2c3d4-...",
+{:job-id #uuid "...",
  :job-type :example-b.enqueue-jobs/sometimes-failing,
  :payload {:batch-no 1, :counter 0}}
-{:job-id #uuid "a1b2c3d5-...",
+{:job-id #uuid "...",
  :job-type :example-b.enqueue-jobs/sometimes-failing,
  :payload {:batch-no 1, :counter 1}}
 [...8 more jobs...]
@@ -110,12 +101,12 @@ seconds and then fails about 50% of the time. When a job succeeds, you'll see
 output like this:
 
 ```
-:proletarian.worker/handling-job {:job-id #uuid a1b2c3d4-..., :job-type :example-b.enqueue-jobs/sometimes-failing, :attempt 1, ...}
+:proletarian.worker/handling-job {:job-type :example-b.enqueue-jobs/sometimes-failing, :attempt 1, ...}
 [  1/0 "Running job :example-b.enqueue-jobs/sometimes-failing. Payload:"]
 [  1/0 {:batch-no 1, :counter 0}]
 [  1/0 "This will fail 50 % of the time and take on average a second:"]
 [  1/0 "Phew, it didn't fail. Done."]
-:proletarian.worker/job-finished {:job-id #uuid a1b2c3d4-..., :job-type :example-b.enqueue-jobs/sometimes-failing, :attempt 1, ...}
+:proletarian.worker/job-finished {:job-type :example-b.enqueue-jobs/sometimes-failing, :attempt 1, ...}
 ```
 
 When a job fails, Proletarian will retry it according to the retry strategy. The

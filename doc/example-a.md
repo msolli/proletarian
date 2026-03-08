@@ -83,14 +83,13 @@ export DATABASE_URL="jdbc:postgresql://localhost:55432/proletarian?user=postgres
 ### 2. Run the Queue Worker
 
 In one of your terminal windows, run this command to start the Queue Worker:
-```
-$ clj -X:examples example-a.worker/run
+```shell
+clj -X:examples example-a.worker/run
 ```
 
 It should start a process that polls the default queue for jobs every 5 seconds:
 
 ```
-$ clj -X:examples example-a.worker/run
 Number of jobs in :proletarian/default queue: 0
 Number of jobs in proletarian.jobs table: 0
 Number of jobs in proletarian.archived_jobs table: 0
@@ -107,8 +106,8 @@ What is happening here, is that we've started a Queue Worker thread pool in a
 JVM process that continuously polls the job table for new work to be done. The
 polling interval is configurable – in this example it is 5 seconds. (In a
 production system you'd probably use a much smaller polling interval – the 
-default is 100 ms. For this example, though, it is much easier to see what's
-going on with a larger polling interval.)
+default is 100 ms. For this example, though, it is easier to see what's going
+on with a larger polling interval.)
 
 The code for this can be found in
 the [`example-a.worker`](https://github.com/msolli/proletarian/blob/main/examples/a/example_a/worker.clj)
@@ -117,33 +116,28 @@ namespace.
 ### 3. Enqueue a job
 
 In your other terminal window, run this command to enqueue a job:
-```
-$ clj -X:examples example-a.enqueue-jobs/run
+```shell
+clj -X:examples example-a.enqueue-jobs/run
 ```
 
 It should add a job to the default queue and print the job details:
 
 ```
-$ clj -X:examples example-a.enqueue-jobs/run
-Number of jobs in :proletarian/default queue: 0
-Number of jobs in proletarian.jobs table: 0
-Number of jobs in proletarian.archived_jobs table: 0
-
 Adding new job to :proletarian/default queue:
-{:job-id #uuid "b78295d5-9241-45c1-8288-e4cf128d6bea",
+{:job-id #uuid "...",
  :job-type :example-a.enqueue-jobs/echo,
  :payload {:message "Hello world!",
-           :timestamp #inst "2021-01-06T20:43:42.451299Z"}}
+           :timestamp #inst "..."}}
 ```
 
 You should see this job get picked up by the queue worker process in the other
 terminal window. You'll see output like this:
 
 ```
-:proletarian.worker/handling-job {:job-id #uuid "b78295d5-9241-45c1-8288-e4cf128d6bea", :job-type :example-a.enqueue-jobs/echo, :attempt 1, :worker-thread-id 1, :proletarian.worker/queue-worker-id proletarian[:proletarian/default]}
+:proletarian.worker/handling-job {:job-id #uuid "...", :job-type :example-a.enqueue-jobs/echo, :attempt 1, :worker-thread-id 1, :proletarian.worker/queue-worker-id proletarian[:proletarian/default]}
 Running job :example-a.enqueue-jobs/echo. Payload:
-{:message "Hello world!", :timestamp #inst "2021-01-06T20:43:42.451Z"}
-:proletarian.worker/job-finished {:job-id #uuid "b78295d5-9241-45c1-8288-e4cf128d6bea", :job-type :example-a.enqueue-jobs/echo, :attempt 1, :worker-thread-id 1, :proletarian.worker/queue-worker-id proletarian[:proletarian/default]}
+{:message "Hello world!", :timestamp #inst "..."}
+:proletarian.worker/job-finished {:job-id #uuid "...", :job-type :example-a.enqueue-jobs/echo, :attempt 1, :worker-thread-id 1, :proletarian.worker/queue-worker-id proletarian[:proletarian/default]}
 ```
 
 Run the same command again to see the miracle unfold one more time.
