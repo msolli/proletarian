@@ -2,7 +2,6 @@
   "In this example we're going to enqueue some jobs that will fail some of the
    time. The jobs will be retried by the workers according to their retry
    strategy."
-
   (:require [examples.common :as common]
             [next.jdbc :as jdbc]
             [proletarian.job :as job]
@@ -23,7 +22,7 @@
                          :counter i}
                 job-id (job/enqueue! conn job-type payload)]
             (puget/cprint {:job-id job-id
-                           :job-type ::echo
+                           :job-type ::sometimes-failing
                            :payload payload})))
         (println)
         (println "Press Enter to enqueue more jobs (Ctrl-C to exit)")
@@ -43,7 +42,7 @@
   [_job-type payload]
   (let [{:keys [batch-no counter]} payload
         log #(puget/cprint [(symbol (format "%3d/%1d" batch-no counter)) %])]
-    (log (str "Running job " ::echo ". Payload:"))
+    (log (str "Running job " ::sometimes-failing ". Payload:"))
     (log payload)
     (log "This will fail 50 % of the time and take on average a second:")
     (do-possibly-failing-thing!)
